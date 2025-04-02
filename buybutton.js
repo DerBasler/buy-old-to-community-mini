@@ -213,6 +213,34 @@ var ShopifyBuy = (function () {
     return call && (typeof call === "object" || typeof call === "function") ? call : self;
   };
 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+  var toConsumableArray$1 = function (arr) {
+    if (Array.isArray(arr)) {
+      for (var i = 0, arr2 = Array(arr.length); i < arr.length; i++) arr2[i] = arr[i];
+
+      return arr2;
+    } else {
+      return Array.from(arr);
+    }
+  };
+
   /*
   The MIT License (MIT)
   Copyright (c) 2016 Shopify Inc.
@@ -2402,7 +2430,7 @@ var ShopifyBuy = (function () {
       if (attrs.hasOwnProperty('apiVersion')) {
         this.apiVersion = attrs.apiVersion;
       } else {
-        this.apiVersion = '2023-07';
+        this.apiVersion = '2024-04';
       }
 
       if (attrs.hasOwnProperty('source')) {
@@ -2417,10 +2445,272 @@ var ShopifyBuy = (function () {
     return Config;
   }();
 
+  var InputMapper = function () {
+    function InputMapper() {
+      classCallCheck$1(this, InputMapper);
+    }
+
+    createClass$1(InputMapper, [{
+      key: 'create',
+      value: function create() {
+        var input = arguments.length > 0 && arguments[0] !== undefined ? arguments[0] : {};
+
+        var cartInput = {};
+
+        if (input.presentmentCurrencyCode) {
+          // eslint-disable-next-line no-console
+          console.warn('presentmentCurrencyCode is not supported by the Cart API');
+        }
+
+        // SDK checkout input fields we can map:
+        if (input.lineItems && input.lineItems.length) {
+          cartInput.lines = input.lineItems.map(function (lineItem) {
+            lineItem.merchandiseId = lineItem.variantId;
+            delete lineItem.variantId;
+
+            return lineItem;
+          });
+        }
+
+        if (input.note) {
+          cartInput.note = input.note;
+        }
+
+        if (input.email) {
+          cartInput.buyerIdentity = { email: input.email };
+        }
+
+        if (input.shippingAddress) {
+          if (!cartInput.buyerIdentity) {
+            cartInput.buyerIdentity = {};
+          }
+          cartInput.buyerIdentity.deliveryAddressPreferences = [{ deliveryAddress: input.shippingAddress }];
+        }
+
+        if (input.customAttributes) {
+          cartInput.attributes = input.customAttributes;
+        }
+
+        // Fields that aren't documented in SDK but could still be passed in:
+        if (input.buyerIdentity) {
+          if (!cartInput.buyerIdentity) {
+            cartInput.buyerIdentity = {};
+          }
+          cartInput.buyerIdentity.countryCode = input.buyerIdentity.countryCode;
+        }
+
+        if (input.allowPartialAddresses) {
+          // eslint-disable-next-line no-console
+          console.warn('allowPartialAddresses is not supported by the Cart API');
+        }
+
+        return cartInput;
+      }
+    }, {
+      key: 'updateAttributes',
+      value: function updateAttributes(checkoutId, input) {
+        var cartAttributesUpdateInput = {
+          attributes: [],
+          cartId: ''
+        };
+
+        var cartNoteUpdateInput = {
+          cartId: '',
+          note: ''
+        };
+
+        if (checkoutId) {
+          cartAttributesUpdateInput.cartId = checkoutId;
+          cartNoteUpdateInput.cartId = checkoutId;
+        }
+
+        if (input.customAttributes) {
+          cartAttributesUpdateInput.attributes = input.customAttributes;
+        }
+
+        if (input.note) {
+          cartNoteUpdateInput.note = input.note;
+        }
+
+        if (input.allowPartialAddresses) {
+          // eslint-disable-next-line no-console
+          console.warn('allowPartialAddresses is not supported by the Cart API');
+        }
+
+        // With cart, we will need to execute two separate mutations (one for attributes and one for note)
+        return { cartAttributesUpdateInput: cartAttributesUpdateInput, cartNoteUpdateInput: cartNoteUpdateInput };
+      }
+    }, {
+      key: 'updateEmail',
+      value: function updateEmail(checkoutId, email) {
+        var cartBuyerIdentityInput = {
+          buyerIdentity: { email: email },
+          cartId: checkoutId
+        };
+
+        return cartBuyerIdentityInput;
+      }
+    }, {
+      key: 'addLineItems',
+      value: function addLineItems(checkoutId, lineItems) {
+        var lines = Array.isArray(lineItems) ? lineItems : [lineItems];
+
+        return {
+          cartId: checkoutId,
+          lines: lines.map(mapLineItemToLine).filter(Boolean)
+        };
+      }
+    }, {
+      key: 'addDiscount',
+      value: function addDiscount(checkoutId, discountCode) {
+        return {
+          cartId: checkoutId,
+          discountCodes: discountCode ? [discountCode] : []
+        };
+      }
+    }, {
+      key: 'removeDiscount',
+      value: function removeDiscount(checkoutId) {
+        return {
+          cartId: checkoutId,
+          discountCodes: []
+        };
+      }
+    }, {
+      key: 'addGiftCards',
+      value: function addGiftCards(checkoutId, giftCardCodes) {
+        return {
+          cartId: checkoutId,
+          giftCardCodes: giftCardCodes || []
+        };
+      }
+    }, {
+      key: 'removeGiftCard',
+      value: function removeGiftCard(checkoutId, appliedGiftCardId) {
+        return {
+          cartId: checkoutId,
+          appliedGiftCardIds: appliedGiftCardId ? [appliedGiftCardId] : []
+        };
+      }
+    }, {
+      key: 'removeLineItems',
+      value: function removeLineItems(checkoutId, lineItemIds) {
+        var lineIds = Array.isArray(lineItemIds) ? lineItemIds : [lineItemIds];
+
+        return {
+          cartId: checkoutId,
+          lineIds: lineIds
+        };
+      }
+    }, {
+      key: 'replaceLineItems',
+      value: function replaceLineItems(checkoutId, lineItems) {
+        var lines = Array.isArray(lineItems) ? lineItems : [lineItems];
+
+        return {
+          cartId: checkoutId,
+          lines: lines.map(mapLineItemToLine).filter(Boolean)
+        };
+      }
+    }, {
+      key: 'updateLineItems',
+      value: function updateLineItems(checkoutId, lineItems) {
+        var lines = Array.isArray(lineItems) ? lineItems : [lineItems];
+
+        return {
+          cartId: checkoutId,
+          lines: lines.map(mapLineItemToLine).filter(Boolean)
+        };
+      }
+    }, {
+      key: 'updateShippingAddress',
+      value: function updateShippingAddress(checkoutId, shippingAddress) {
+        var deliveryAddress = {};
+
+        if (shippingAddress.address1) {
+          deliveryAddress.address1 = shippingAddress.address1;
+        }
+
+        if (shippingAddress.address2) {
+          deliveryAddress.address2 = shippingAddress.address2;
+        }
+
+        if (shippingAddress.city) {
+          deliveryAddress.city = shippingAddress.city;
+        }
+
+        if (shippingAddress.company) {
+          deliveryAddress.company = shippingAddress.company;
+        }
+
+        if (shippingAddress.country) {
+          deliveryAddress.country = shippingAddress.country;
+        }
+
+        if (shippingAddress.firstName) {
+          deliveryAddress.firstName = shippingAddress.firstName;
+        }
+
+        if (shippingAddress.lastName) {
+          deliveryAddress.lastName = shippingAddress.lastName;
+        }
+
+        if (shippingAddress.phone) {
+          deliveryAddress.phone = shippingAddress.phone;
+        }
+
+        if (shippingAddress.zip) {
+          deliveryAddress.zip = shippingAddress.zip;
+        }
+
+        if (shippingAddress.province) {
+          deliveryAddress.province = shippingAddress.province;
+        }
+
+        var withDeliveryAddress = deliveryAddress && Object.keys(deliveryAddress).length > 0;
+
+        return {
+          cartId: checkoutId,
+          buyerIdentity: {
+            deliveryAddressPreferences: withDeliveryAddress ? [{ deliveryAddress: deliveryAddress }] : []
+          }
+        };
+      }
+    }]);
+    return InputMapper;
+  }();
+
+  function mapLineItemToLine(lineItem) {
+    var line = {};
+
+    if (typeof lineItem.id !== 'undefined') {
+      line.id = lineItem.id;
+    }
+
+    if (typeof lineItem.customAttributes !== 'undefined') {
+      line.attributes = lineItem.customAttributes;
+    }
+
+    if (typeof lineItem.quantity !== 'undefined') {
+      line.quantity = lineItem.quantity;
+    }
+
+    if (typeof lineItem.variantId !== 'undefined') {
+      line.merchandiseId = lineItem.variantId;
+    }
+
+    if (Object.keys(line).length === 0) {
+      return null;
+    }
+
+    return line;
+  }
+
   var Resource = function Resource(client) {
     classCallCheck$1(this, Resource);
 
     this.graphQLClient = client;
+    this.inputMapper = new InputMapper();
   };
 
   var defaultErrors = [{ message: 'an unknown error has occurred.' }];
@@ -4157,7 +4447,761 @@ var ShopifyBuy = (function () {
     return ShopResource;
   }(Resource);
 
-  function handleCheckoutMutation(mutationRootKey, client) {
+  function getDiscountAllocationId(discountAllocation) {
+    var discountApp = discountAllocation.discountApplication;
+    var discountId = discountAllocation.code || discountAllocation.title || discountApp.code || discountApp.title;
+
+    if (!discountId) {
+      throw new Error('Discount allocation must have either code or title in discountApplication: ' + JSON.stringify(discountAllocation));
+    }
+
+    return discountId;
+  }
+
+  function getDiscountApplicationId(discountApplication) {
+    var discountId = discountApplication.code || discountApplication.title;
+
+    if (!discountId) {
+      throw new Error('Discount application must have either code or title: ' + JSON.stringify(discountApplication));
+    }
+
+    return discountId;
+  }
+
+  function convertToCheckoutDiscountApplicationType(cartLineItems, cartOrderLevelDiscountAllocations) {
+    // For each discount allocation, move the code/title field to be inside the discountApplication field
+    // This is because the code/title field is part of the discount allocation for a Cart, but part of
+    // the discount application for a checkout
+    for (var i = 0; i < cartLineItems.length; i++) {
+      var discountAllocations = cartLineItems[i].discountAllocations;
+
+
+      if (!discountAllocations) {
+        continue;
+      }
+
+      for (var j = 0; j < discountAllocations.length; j++) {
+        var allocation = discountAllocations[j];
+        var newDiscountApplication = Object.assign({}, allocation.discountApplication || {}, allocation.code ? { code: allocation.code } : null, allocation.title ? { title: allocation.title } : null);
+
+        var newAllocation = Object.assign({}, allocation);
+
+        delete newAllocation.code;
+        delete newAllocation.title;
+        newAllocation.discountApplication = newDiscountApplication;
+
+        discountAllocations[j] = newAllocation;
+      }
+    }
+
+    for (var _i = 0; _i < cartOrderLevelDiscountAllocations.length; _i++) {
+      var _allocation = cartOrderLevelDiscountAllocations[_i];
+      var _newDiscountApplication = Object.assign({}, _allocation.discountApplication || {}, _allocation.code ? { code: _allocation.code } : null, _allocation.title ? { title: _allocation.title } : null);
+
+      var _newAllocation = Object.assign({}, _allocation);
+
+      delete _newAllocation.code;
+      delete _newAllocation.title;
+      _newAllocation.discountApplication = _newDiscountApplication;
+
+      cartOrderLevelDiscountAllocations[_i] = _newAllocation;
+    }
+  }
+
+  function groupOrderLevelDiscountAllocationsByDiscountId(cartDiscountAllocations) {
+    return cartDiscountAllocations.reduce(function (acc, discountAllocation) {
+      var id = getDiscountAllocationId(discountAllocation);
+
+      acc.set(id, [].concat(toConsumableArray$1(acc.get(id) || []), [discountAllocation]));
+
+      return acc;
+    }, new Map());
+  }
+
+  function findLineIdForEachOrderLevelDiscountAllocation(cartLines, orderLevelDiscountAllocations) {
+    if (!cartLines.length || !orderLevelDiscountAllocations.length) {
+      return [];
+    }
+
+    if (orderLevelDiscountAllocations.length % cartLines.length !== 0) {
+      throw new Error('Invalid number of order-level discount allocations. For each order-level discount, there must be 1 order-level discount allocation for each line item. \n      Number of line items: ' + cartLines.length + '. Number of discount allocations: ' + orderLevelDiscountAllocations.length);
+    }
+
+    // May have multiple order-level discount allocations for a given line item
+    var discountIdToDiscountAllocationsMap = groupOrderLevelDiscountAllocationsByDiscountId(orderLevelDiscountAllocations);
+
+    // Sort each array within the Map by discountedAmount so that the lowest discounted amount appears first
+    discountIdToDiscountAllocationsMap.forEach(function (allocations) {
+      allocations.sort(function (first, second) {
+        return first.discountedAmount.amount - second.discountedAmount.amount;
+      });
+    });
+
+    // Sort cart line items so that the item with the lowest cost (after line-level discounts) appears first
+    var sortedCartLineItems = [].concat(toConsumableArray$1(cartLines)).sort(function (first, second) {
+      return first.cost.totalAmount.amount - second.cost.totalAmount.amount;
+    });
+
+    // For each discount, the discount allocation with the smallest amount should be applied
+    // to the item with the lowest cost (after line-level discounts)
+    return Array.from(discountIdToDiscountAllocationsMap.values()).flatMap(function (allocations) {
+      return sortedCartLineItems.map(function (lineItem, index) {
+        return {
+          id: lineItem.id,
+          discountAllocation: {
+            discountedAmount: allocations[index].discountedAmount,
+            discountApplication: allocations[index].discountApplication
+          }
+        };
+      });
+    });
+  }
+
+  function discountMapper(_ref) {
+    var cartLineItems = _ref.cartLineItems,
+        cartDiscountAllocations = _ref.cartDiscountAllocations,
+        cartDiscountCodes = _ref.cartDiscountCodes;
+
+    var hasDiscountAllocations = false;
+
+    for (var i = 0; i < cartLineItems.length; i++) {
+      var discountAllocations = cartLineItems[i].discountAllocations;
+
+
+      if (discountAllocations && discountAllocations.length) {
+        hasDiscountAllocations = true;
+        break;
+      }
+    }
+    if (!hasDiscountAllocations && !cartDiscountAllocations.length) {
+      return {
+        discountApplications: [],
+        cartLinesWithAllDiscountAllocations: cartLineItems
+      };
+    }
+
+    convertToCheckoutDiscountApplicationType(cartLineItems, cartDiscountAllocations);
+
+    var cartLinesWithAllDiscountAllocations = mergeCartOrderLevelDiscountAllocationsToCartLineDiscountAllocations({
+      lineItems: cartLineItems,
+      orderLevelDiscountAllocationsForLines: findLineIdForEachOrderLevelDiscountAllocation(cartLineItems, cartDiscountAllocations)
+    });
+
+    var discountIdToDiscountApplicationMap = generateDiscountApplications(cartLinesWithAllDiscountAllocations, cartDiscountCodes);
+
+    cartDiscountCodes.forEach(function (_ref2) {
+      var code = _ref2.code,
+          codeIsApplied = _ref2.codeIsApplied;
+
+      if (codeIsApplied && !discountIdToDiscountApplicationMap.has(code)) {
+        throw new Error('Discount code ' + code + ' not found in discount application map. \n        Discount application map: ' + JSON.stringify(discountIdToDiscountApplicationMap));
+      }
+    });
+
+    return {
+      discountApplications: Array.from(discountIdToDiscountApplicationMap.values()),
+      cartLinesWithAllDiscountAllocations: cartLinesWithAllDiscountAllocations
+    };
+  }
+
+  function mergeCartOrderLevelDiscountAllocationsToCartLineDiscountAllocations(_ref3) {
+    var lineItems = _ref3.lineItems,
+        orderLevelDiscountAllocationsForLines = _ref3.orderLevelDiscountAllocationsForLines;
+
+    return lineItems.map(function (line) {
+      var lineItemId = line.id;
+      // Could have multiple order-level discount allocations for a given line item
+      var orderLevelDiscountAllocationsForLine = orderLevelDiscountAllocationsForLines.filter(function (_ref4) {
+        var id = _ref4.id;
+        return id === lineItemId;
+      }).map(function (_ref5) {
+        var discountAllocation = _ref5.discountAllocation;
+        return {
+          discountedAmount: discountAllocation.discountedAmount,
+          discountApplication: discountAllocation.discountApplication
+        };
+      });
+
+      var mergedDiscountAllocations = (line.discountAllocations || []).concat(orderLevelDiscountAllocationsForLine);
+      var result = Object.assign({}, line, {
+        discountAllocations: mergedDiscountAllocations
+      });
+
+      return result;
+    });
+  }
+
+  function generateDiscountApplications(cartLinesWithAllDiscountAllocations, discountCodes) {
+    var discountIdToDiscountApplicationMap = new Map();
+
+    if (!cartLinesWithAllDiscountAllocations) {
+      return discountIdToDiscountApplicationMap;
+    }
+
+    cartLinesWithAllDiscountAllocations.forEach(function (_ref6) {
+      var discountAllocations = _ref6.discountAllocations;
+
+      if (!discountAllocations) {
+        return;
+      }
+
+      discountAllocations.forEach(function (discountAllocation) {
+        var discountApp = discountAllocation.discountApplication;
+        var discountId = getDiscountAllocationId(discountAllocation);
+
+        if (!discountId) {
+          throw new Error('Discount allocation must have either code or title in discountApplication: ' + JSON.stringify(discountAllocation));
+        }
+
+        if (discountIdToDiscountApplicationMap.has(discountId)) {
+          var existingDiscountApplication = discountIdToDiscountApplicationMap.get(discountId);
+
+          // if existingDiscountApplication.value is an amount rather than a percentage discount
+          if (existingDiscountApplication.value && 'amount' in existingDiscountApplication.value) {
+            existingDiscountApplication.value = {
+              amount: (Number(existingDiscountApplication.value.amount) + Number(discountAllocation.discountedAmount.amount)).toFixed(2),
+              currencyCode: existingDiscountApplication.value.currencyCode,
+              type: existingDiscountApplication.value.type
+            };
+          }
+        } else {
+          var discountApplication = {
+            __typename: 'DiscountApplication',
+            targetSelection: discountApp.targetSelection,
+            allocationMethod: discountApp.allocationMethod,
+            targetType: discountApp.targetType,
+            value: discountApp.value,
+            hasNextPage: false,
+            hasPreviousPage: false
+          };
+
+          if ('code' in discountAllocation.discountApplication) {
+            var discountCode = discountCodes.find(function (_ref7) {
+              var code = _ref7.code;
+              return code === discountId;
+            });
+
+            if (!discountCode) {
+              throw new Error('Discount code ' + discountId + ' not found in cart discount codes. Discount codes: ' + JSON.stringify(discountCodes));
+            }
+            discountApplication = Object.assign({}, discountApplication, {
+              code: discountAllocation.discountApplication.code,
+              applicable: discountCode.applicable,
+              type: {
+                fieldBaseTypes: {
+                  applicable: 'Boolean',
+                  code: 'String'
+                },
+                implementsNode: false,
+                kind: 'OBJECT',
+                name: 'DiscountApplication'
+              }
+            });
+          } else {
+            discountApplication = Object.assign({}, discountApplication, {
+              title: discountAllocation.discountApplication.title,
+              type: {
+                fieldBaseTypes: {
+                  applicable: 'Boolean',
+                  title: 'String'
+                },
+                implementsNode: false,
+                kind: 'OBJECT',
+                name: 'DiscountApplication'
+              }
+            });
+          }
+
+          discountIdToDiscountApplicationMap.set(discountId, discountApplication);
+        }
+      });
+    });
+
+    return discountIdToDiscountApplicationMap;
+  }
+
+  function getVariantType() {
+    return {
+      name: 'ProductVariant',
+      kind: 'OBJECT',
+      fieldBaseTypes: {
+        availableForSale: 'Boolean',
+        compareAtPrice: 'MoneyV2',
+        id: 'ID',
+        image: 'Image',
+        price: 'MoneyV2',
+        product: 'Product',
+        selectedOptions: 'SelectedOption',
+        sku: 'String',
+        title: 'String',
+        unitPrice: 'MoneyV2',
+        unitPriceMeasurement: 'UnitPriceMeasurement',
+        weight: 'Float'
+      },
+      implementsNode: true
+    };
+  }
+
+  function getLineItemType() {
+    return {
+      name: 'CheckoutLineItem',
+      kind: 'OBJECT',
+      fieldBaseTypes: {
+        customAttributes: 'Attribute',
+        discountAllocations: 'Object[]',
+        id: 'ID',
+        quantity: 'Int',
+        title: 'String',
+        variant: 'Merchandise'
+      },
+      implementsNode: true
+    };
+  }
+
+  function getDiscountAllocationType() {
+    return {
+      fieldBaseTypes: {
+        allocatedAmount: 'MoneyV2',
+        discountApplication: 'DiscountApplication'
+      },
+      implementsNode: false,
+      kind: 'OBJECT',
+      name: 'DiscountAllocation'
+    };
+  }
+
+  function mapVariant(merchandise) {
+    // Copy all properties except 'product'
+    var result = {};
+
+    for (var key in merchandise) {
+      if (merchandise.hasOwnProperty(key) && key !== 'product') {
+        result[key] = merchandise[key];
+      }
+    }
+
+    // The actual Cart merchandise and Checkout variant objects map cleanly to each other,
+    // but the SDK wasn't fetching the title from the product object, so we need to remove it
+    var productWithoutTitle = {};
+
+    if (merchandise.product) {
+      for (var _key in merchandise.product) {
+        if (merchandise.product.hasOwnProperty(_key) && _key !== 'title') {
+          productWithoutTitle[_key] = merchandise.product[_key];
+        }
+      }
+    }
+
+    // Add additional properties
+    result.priceV2 = merchandise.price;
+    result.compareAtPriceV2 = merchandise.compareAtPrice;
+    result.product = productWithoutTitle;
+    result.type = getVariantType();
+
+    return result;
+  }
+
+  function mapDiscountAllocations(discountAllocations, discountApplications) {
+    if (!discountAllocations) {
+      return [];
+    }
+
+    var result = [];
+
+    for (var i = 0; i < discountAllocations.length; i++) {
+      var allocation = discountAllocations[i];
+      var application = null;
+
+      for (var j = 0; j < discountApplications.length; j++) {
+        if (getDiscountAllocationId(allocation) === getDiscountApplicationId(discountApplications[j])) {
+          application = discountApplications[j];
+          break;
+        }
+      }
+
+      if (!application) {
+        throw new Error('Missing discount application for allocation: ' + JSON.stringify(allocation));
+      }
+
+      var discountApp = Object.assign({}, application);
+
+      result.push({
+        allocatedAmount: allocation.discountedAmount,
+        discountApplication: discountApp,
+        type: getDiscountAllocationType()
+      });
+    }
+
+    return result;
+  }
+
+  function mapLineItems(lines, discountApplications) {
+    if (!lines || !Array.isArray(lines)) {
+      return [];
+    }
+
+    var result = [];
+
+    for (var i = 0; i < lines.length; i++) {
+      var line = lines[i];
+
+      if (!line || !line.merchandise || !line.merchandise.product) {
+        continue;
+      }
+
+      var variant = mapVariant(line.merchandise);
+
+      result.push({
+        customAttributes: line.attributes,
+        discountAllocations: mapDiscountAllocations(line.discountAllocations || [], discountApplications),
+        id: line.id,
+        quantity: line.quantity,
+        title: line.merchandise.product.title,
+        variant: variant,
+        hasNextPage: false,
+        hasPreviousPage: false,
+        variableValues: line.variableValues,
+        type: getLineItemType()
+      });
+    }
+
+    return result;
+  }
+
+  function mapDiscountsAndLines(cart) {
+    if (!cart) {
+      return { discountApplications: [], cartLinesWithDiscounts: [] };
+    }
+
+    var result = discountMapper({
+      cartLineItems: cart.lines || [],
+      cartDiscountAllocations: cart.discountAllocations || [],
+      cartDiscountCodes: cart.discountCodes || []
+    });
+
+    var mappedLines = mapLineItems(result.cartLinesWithAllDiscountAllocations || [], result.discountApplications || []);
+
+    return {
+      discountApplications: result.discountApplications || [],
+      cartLinesWithDiscounts: mappedLines
+    };
+  }
+
+  // NOTE: fields such as availableShippingRates are not included because they are not queried by the JS Buy SDK
+  var UNSUPPORTED_FIELDS = {
+    completedAt: null,
+    order: null,
+    orderStatusUrl: null,
+    ready: false,
+    requiresShipping: true,
+    shippingLine: null,
+    taxExempt: false,
+    taxesIncluded: false
+  };
+
+  function mapCartPayload(cart) {
+    if (!cart) {
+      return null;
+    }
+
+    var result = mapDiscountsAndLines(cart);
+    var discountApplications = result.discountApplications;
+    var cartLinesWithDiscounts = result.cartLinesWithDiscounts;
+
+    var buyerIdentity = {
+      countryCode: cart.buyerIdentity && cart.buyerIdentity.countryCode
+    };
+
+    var email = null;
+
+    if (cart.buyerIdentity && cart.buyerIdentity.email) {
+      email = cart.buyerIdentity.email;
+    }
+
+    var shippingAddress = null;
+
+    if (cart.buyerIdentity && cart.buyerIdentity.deliveryAddressPreferences && cart.buyerIdentity.deliveryAddressPreferences.length) {
+      shippingAddress = cart.buyerIdentity.deliveryAddressPreferences[0];
+    }
+
+    var currencyCode = null;
+    var totalAmount = null;
+    var totalTaxAmount = null;
+    var totalDutyAmount = null;
+    var checkoutChargeAmount = null;
+
+    if (cart.cost) {
+      if (cart.cost.totalAmount) {
+        currencyCode = cart.cost.totalAmount.currencyCode;
+        totalAmount = cart.cost.totalAmount;
+      }
+      if (cart.cost.totalTaxAmount) {
+        totalTaxAmount = cart.cost.totalTaxAmount;
+      }
+      if (cart.cost.totalDutyAmount) {
+        totalDutyAmount = cart.cost.totalDutyAmount;
+      }
+      if (cart.cost.checkoutChargeAmount) {
+        checkoutChargeAmount = cart.cost.checkoutChargeAmount;
+      }
+    }
+
+    var appliedGiftCards = cart.appliedGiftCards || [];
+    var totalPrice = null;
+
+    // This field will be defined in the API, but we're making it "optional" here so that our
+    // unit tests for other fields work while only passing in the relevant fields
+    if (totalAmount) {
+      totalPrice = calculateTotalPrice(cart, totalAmount);
+    }
+
+    var subtotalPrice = null;
+
+    // This field will be defined in the API, but we're making it "optional" here so that our
+    // unit tests for other fields work while only passing in the relevant fields
+    if (totalPrice) {
+      subtotalPrice = calculateSubtotalPrice(totalPrice, totalDutyAmount, totalTaxAmount);
+    }
+
+    var checkoutPayload = Object.assign({
+      appliedGiftCards: appliedGiftCards,
+      buyerIdentity: buyerIdentity,
+      createdAt: cart.createdAt,
+      currencyCode: currencyCode,
+      customAttributes: cart.attributes,
+      discountApplications: discountApplications,
+      email: email,
+      id: cart.id,
+      lineItems: cartLinesWithDiscounts,
+      lineItemsSubtotalPrice: checkoutChargeAmount,
+      note: cart.note,
+      paymentDue: totalAmount,
+      paymentDueV2: totalAmount,
+      shippingAddress: shippingAddress,
+      subtotalPrice: subtotalPrice,
+      subtotalPriceV2: subtotalPrice,
+      totalPrice: totalPrice,
+      totalPriceV2: totalPrice,
+      totalTax: totalTaxAmount || getDefaultMoneyObject(currencyCode, totalAmount),
+      totalTaxV2: totalTaxAmount || getDefaultMoneyObject(currencyCode, totalAmount),
+      updatedAt: cart.updatedAt,
+      webUrl: cart.checkoutUrl
+    }, UNSUPPORTED_FIELDS);
+
+    normalizeCartMoneyFieldDecimalPlaces(checkoutPayload);
+
+    return checkoutPayload;
+  }
+
+  /**
+   *
+   * @description Normalize all currency fields in the checkout payload to contain
+   * the same number of decimal places that would be returned by the storefront API.
+   *
+   * In the storefront API, currency amounts are returned as a string that contains
+   * 1 decimal place (if the 2nd decimal place is 0) or else 2 decimal places.
+   *
+   * In our mapping functions, we are typically converting to strings with 2 decimal
+   * places. In case any clients of the JS Buy SDK are relying only a single decimal
+   * place being returned in some cases, we want to normalize the decimal places.
+   */
+  function normalizeCartMoneyFieldDecimalPlaces(checkout) {
+    // The fields that we have mapped the currency for (that we therefore need to normalize)
+    // are: discountApplication amounts, subtotalPrice, and totalPrice.
+
+    if (checkout.discountApplications) {
+      for (var i = 0; i < checkout.discountApplications.length; i++) {
+        if (typeof checkout.discountApplications[i].value.percentage !== 'undefined') {
+          continue;
+        }
+
+        var discountApplicationAmount = checkout.discountApplications[i].value.amount.toString();
+
+        if (!shouldReturnWithOneDecimalPlace(discountApplicationAmount)) {
+          continue;
+        }
+
+        checkout.discountApplications[i].value.amount = convertToOneDecimalPlace(discountApplicationAmount);
+      }
+    }
+
+    if (checkout.lineItems) {
+      for (var _i = 0; _i < checkout.lineItems.length; _i++) {
+        for (var j = 0; j < checkout.lineItems[_i].discountAllocations.length; j++) {
+          var discountApplication = checkout.lineItems[_i].discountAllocations[j].discountApplication;
+
+          if (typeof discountApplication.value.percentage !== 'undefined') {
+            continue;
+          }
+
+          var _discountApplicationAmount = discountApplication.value.amount.toString();
+
+          if (!shouldReturnWithOneDecimalPlace(_discountApplicationAmount)) {
+            continue;
+          }
+
+          discountApplication.value.amount = convertToOneDecimalPlace(_discountApplicationAmount);
+        }
+      }
+    }
+
+    if (checkout.subtotalPrice) {
+      if (shouldReturnWithOneDecimalPlace(checkout.subtotalPrice.amount)) {
+        checkout.subtotalPrice.amount = convertToOneDecimalPlace(checkout.subtotalPrice.amount);
+        checkout.subtotalPriceV2.amount = convertToOneDecimalPlace(checkout.subtotalPriceV2.amount);
+      }
+    }
+
+    if (checkout.totalPrice) {
+      if (shouldReturnWithOneDecimalPlace(checkout.totalPrice.amount)) {
+        checkout.totalPrice.amount = convertToOneDecimalPlace(checkout.totalPrice.amount);
+        checkout.totalPriceV2.amount = convertToOneDecimalPlace(checkout.totalPriceV2.amount);
+      }
+    }
+  }
+
+  /**
+   * @description Whether the SF API would return this amount with 1 decimal place
+   * (as opposed to 2 decimal places). See normalizeCartMoneyFieldDecimalPlaces
+   * for more information.
+   * @param {string} currency field to check
+   * @returns {boolean} whether the SF API would return this amount with 1 decimal place
+   */
+  function shouldReturnWithOneDecimalPlace(amount) {
+    if (!amount || !amount.toString().includes('.')) {
+      return false;
+    }
+
+    var currencyDecimals = amount.toString().split('.')[1];
+
+    if (currencyDecimals.length === 2 && currencyDecimals[1] === '0') {
+      return true;
+    }
+
+    return false;
+  }
+
+  function convertToOneDecimalPlace(stringAmount) {
+    return parseFloat(stringAmount).toFixed(1);
+  }
+
+  function getDefaultMoneyObject(currencyCode, totalAmount) {
+    return {
+      amount: '0.0',
+      currencyCode: currencyCode,
+      type: totalAmount && totalAmount.type
+    };
+  }
+
+  function calculateTotalPrice(cart, totalAmount) {
+    if (!cart.appliedGiftCards || !cart.appliedGiftCards.length) {
+      return totalAmount;
+    }
+
+    // Assuming cart's totalAmount will have the same currency code as gift cards' presentmentAmountUsed
+    var giftCardTotal = 0;
+
+    for (var i = 0; i < cart.appliedGiftCards.length; i++) {
+      giftCardTotal += parseFloat(cart.appliedGiftCards[i].presentmentAmountUsed.amount);
+    }
+
+    return {
+      amount: (parseFloat(totalAmount.amount) + giftCardTotal).toFixed(2),
+      currencyCode: totalAmount.currencyCode,
+      type: totalAmount.type
+    };
+  }
+
+  function calculateSubtotalPrice(totalPrice, totalDutyAmount, totalTaxAmount) {
+    var dutyAmount = totalDutyAmount ? totalDutyAmount.amount : 0;
+    var taxAmount = totalTaxAmount ? totalTaxAmount.amount : 0;
+
+    return {
+      amount: (parseFloat(totalPrice.amount) - parseFloat(dutyAmount) - parseFloat(taxAmount)).toFixed(2),
+      currencyCode: totalPrice.currencyCode,
+      type: totalPrice.type
+    };
+  }
+
+  var CartErrorCodeToCheckoutErrorCode = {
+    ADDRESS_FIELD_CONTAINS_EMOJIS: 'NOT_SUPPORTED',
+    ADDRESS_FIELD_CONTAINS_HTML_TAGS: 'NOT_SUPPORTED',
+    ADDRESS_FIELD_CONTAINS_URL: 'NOT_SUPPORTED',
+    ADDRESS_FIELD_DOES_NOT_MATCH_EXPECTED_PATTERN: 'NOT_SUPPORTED',
+    ADDRESS_FIELD_IS_REQUIRED: 'PRESENT',
+    ADDRESS_FIELD_IS_TOO_LONG: 'TOO_LONG',
+    INVALID: 'INVALID',
+    INVALID_COMPANY_LOCATION: 'INVALID',
+    INVALID_DELIVERY_GROUP: 'INVALID',
+    INVALID_DELIVERY_OPTION: 'INVALID',
+    INVALID_INCREMENT: 'INVALID',
+    INVALID_MERCHANDISE_LINE: 'LINE_ITEM_NOT_FOUND',
+    INVALID_METAFIELDS: 'INVALID',
+    INVALID_PAYMENT: 'INVALID',
+    INVALID_PAYMENT_EMPTY_CART: 'INVALID',
+    INVALID_ZIP_CODE_FOR_COUNTRY: 'INVALID_FOR_COUNTRY',
+    INVALID_ZIP_CODE_FOR_PROVINCE: 'INVALID_FOR_COUNTRY_AND_PROVINCE',
+    LESS_THAN: 'LESS_THAN',
+    MAXIMUM_EXCEEDED: 'NOT_ENOUGH_IN_STOCK',
+    MINIMUM_NOT_MET: 'GREATER_THAN_OR_EQUAL_TO',
+    MISSING_CUSTOMER_ACCESS_TOKEN: 'PRESENT',
+    MISSING_DISCOUNT_CODE: 'PRESENT',
+    MISSING_NOTE: 'PRESENT',
+    NOTE_TOO_LONG: 'TOO_LONG',
+    PAYMENT_METHOD_NOT_SUPPORTED: 'NOT_SUPPORTED',
+    PROVINCE_NOT_FOUND: 'INVALID_PROVINCE_IN_COUNTRY',
+    UNSPECIFIED_ADDRESS_ERROR: 'INVALID',
+    VALIDATION_CUSTOM: 'INVALID',
+    ZIP_CODE_NOT_SUPPORTED: 'NOT_SUPPORTED'
+  };
+
+  var CartWarningCodeToCheckoutErrorCode = {
+    MERCHANDISE_NOT_ENOUGH_STOCK: 'NOT_ENOUGH_IN_STOCK',
+    MERCHANDISE_OUT_OF_STOCK: 'NOT_ENOUGH_IN_STOCK',
+    PAYMENTS_GIFT_CARDS_UNAVAILABLE: 'NOT_SUPPORTED'
+  };
+
+  function userErrorsMapper(userErrors) {
+    return userErrors.map(function (_ref) {
+      var code = _ref.code,
+          field = _ref.field,
+          message = _ref.message;
+      return {
+        // eslint-disable-next-line no-undefined
+        code: code ? CartErrorCodeToCheckoutErrorCode[code] : undefined,
+        field: field,
+        message: message
+      };
+    });
+  }
+
+  function warningsMapper(warnings) {
+    return warnings.map(function (_ref2) {
+      var code = _ref2.code,
+          message = _ref2.message;
+      return {
+        // eslint-disable-next-line no-undefined
+        code: code ? CartWarningCodeToCheckoutErrorCode[code] : undefined,
+        message: message
+      };
+    });
+  }
+
+  function checkoutUserErrorsMapper(userErrors, warnings) {
+    var hasUserErrors = userErrors && userErrors.length;
+    var hasWarnings = warnings && warnings.length;
+
+    if (!hasUserErrors && !hasWarnings) {
+      return [];
+    }
+
+    var checkoutUserErrors = hasUserErrors ? userErrorsMapper(userErrors) : [];
+    var checkoutWarnings = hasWarnings ? warningsMapper(warnings) : [];
+
+    return [].concat(toConsumableArray$1(checkoutUserErrors), toConsumableArray$1(checkoutWarnings));
+  }
+
+  function handleCartMutation(mutationRootKey, client) {
     return function (_ref) {
       var _ref$data = _ref.data,
           data = _ref$data === undefined ? {} : _ref$data,
@@ -4168,13 +5212,16 @@ var ShopifyBuy = (function () {
       var rootData = data[mutationRootKey];
       var rootModel = model[mutationRootKey];
 
-      if (rootData && rootData.checkout) {
-        return client.fetchAllPages(rootModel.checkout.lineItems, { pageSize: 250 }).then(function (lineItems) {
-          rootModel.checkout.attrs.lineItems = lineItems;
-          rootModel.checkout.errors = errors;
-          rootModel.checkout.userErrors = rootModel.userErrors;
+      if (rootData && rootData.cart) {
+        return client.fetchAllPages(rootModel.cart.lines, { pageSize: 250 }).then(function (lines) {
+          rootModel.cart.attrs.lines = lines;
+          var checkoutUserErrors = checkoutUserErrorsMapper(rootData.userErrors, rootData.warnings);
 
-          return rootModel.checkout;
+          try {
+            return Object.assign({}, mapCartPayload(rootModel.cart, mutationRootKey), { userErrors: checkoutUserErrors, errors: rootModel.cart.errors });
+          } catch (error) {
+            return Promise.reject(error);
+          }
         });
       }
 
@@ -4182,15 +5229,13 @@ var ShopifyBuy = (function () {
         return Promise.reject(new Error(JSON.stringify(errors)));
       }
 
-      if (rootData && rootData.checkoutUserErrors && rootData.checkoutUserErrors.length) {
-        return Promise.reject(new Error(JSON.stringify(rootData.checkoutUserErrors)));
+      if (rootData && (rootData.userErrors.length || rootData.warnings.length)) {
+        var checkoutUserErrors = checkoutUserErrorsMapper(rootData.userErrors, rootData.warnings);
+
+        return Promise.reject(checkoutUserErrors);
       }
 
-      if (rootData && rootData.userErrors && rootData.userErrors.length) {
-        return Promise.reject(new Error(JSON.stringify(rootData.userErrors)));
-      }
-
-      return Promise.reject(new Error("The " + mutationRootKey + " mutation failed due to an unknown error."));
+      return Promise.reject(new Error('The ' + mutationRootKey + ' mutation failed due to an unknown error.'));
     };
   }
 
@@ -4198,87 +5243,109 @@ var ShopifyBuy = (function () {
     var document = client.document();
     var spreads = {};
     var variables = {};
-    variables.__defaultOperation__ = {};
-    variables.__defaultOperation__.id = client.variable("id", "ID!");
-    spreads.VariantFragment = document.defineFragment("VariantFragment", "ProductVariant", function (root) {
+    variables.Cart = {};
+    variables.Cart.id = client.variable("id", "ID!");
+    spreads.CartLineFragment = document.defineFragment("CartLineFragment", "CartLine", function (root) {
       root.add("id");
-      root.add("title");
-      root.add("price", function (price) {
-        price.add("amount");
-        price.add("currencyCode");
-      });
-      root.add("price", {
-        alias: "priceV2"
-      }, function (price) {
-        price.add("amount");
-        price.add("currencyCode");
-      });
-      root.add("weight");
-      root.add("availableForSale", {
-        alias: "available"
-      });
-      root.add("sku");
-      root.add("compareAtPrice", function (compareAtPrice) {
-        compareAtPrice.add("amount");
-        compareAtPrice.add("currencyCode");
-      });
-      root.add("compareAtPrice", {
-        alias: "compareAtPriceV2"
-      }, function (compareAtPrice) {
-        compareAtPrice.add("amount");
-        compareAtPrice.add("currencyCode");
-      });
-      root.add("image", function (image) {
-        image.add("id");
-        image.add("url", {
-          alias: "src"
-        });
-        image.add("altText");
-        image.add("width");
-        image.add("height");
-      });
-      root.add("selectedOptions", function (selectedOptions) {
-        selectedOptions.add("name");
-        selectedOptions.add("value");
-      });
-      root.add("unitPrice", function (unitPrice) {
-        unitPrice.add("amount");
-        unitPrice.add("currencyCode");
-      });
-      root.add("unitPriceMeasurement", function (unitPriceMeasurement) {
-        unitPriceMeasurement.add("measuredType");
-        unitPriceMeasurement.add("quantityUnit");
-        unitPriceMeasurement.add("quantityValue");
-        unitPriceMeasurement.add("referenceUnit");
-        unitPriceMeasurement.add("referenceValue");
-      });
-    });
-    spreads.DiscountApplicationFragment = document.defineFragment("DiscountApplicationFragment", "DiscountApplication", function (root) {
-      root.add("targetSelection");
-      root.add("allocationMethod");
-      root.add("targetType");
-      root.add("value", function (value) {
-        value.addInlineFragmentOn("MoneyV2", function (MoneyV2) {
-          MoneyV2.add("amount");
-          MoneyV2.add("currencyCode");
-        });
-        value.addInlineFragmentOn("PricingPercentageValue", function (PricingPercentageValue) {
-          PricingPercentageValue.add("percentage");
+      root.add("merchandise", function (merchandise) {
+        merchandise.addInlineFragmentOn("ProductVariant", function (ProductVariant) {
+          ProductVariant.add("id");
+          ProductVariant.add("title");
+          ProductVariant.add("image", function (image) {
+            image.add("id");
+            image.add("url", {
+              alias: "src"
+            });
+            image.add("altText");
+            image.add("width");
+            image.add("height");
+          });
+          ProductVariant.add("product", function (product) {
+            product.add("id");
+            product.add("handle");
+            product.add("title");
+          });
+          ProductVariant.add("weight");
+          ProductVariant.add("availableForSale", {
+            alias: "available"
+          });
+          ProductVariant.add("sku");
+          ProductVariant.add("selectedOptions", function (selectedOptions) {
+            selectedOptions.add("name");
+            selectedOptions.add("value");
+          });
+          ProductVariant.add("compareAtPrice", function (compareAtPrice) {
+            compareAtPrice.add("amount");
+            compareAtPrice.add("currencyCode");
+          });
+          ProductVariant.add("price", function (price) {
+            price.add("amount");
+            price.add("currencyCode");
+          });
+          ProductVariant.add("unitPrice", function (unitPrice) {
+            unitPrice.add("amount");
+            unitPrice.add("currencyCode");
+          });
+          ProductVariant.add("unitPriceMeasurement", function (unitPriceMeasurement) {
+            unitPriceMeasurement.add("measuredType");
+            unitPriceMeasurement.add("quantityUnit");
+            unitPriceMeasurement.add("quantityValue");
+            unitPriceMeasurement.add("referenceUnit");
+            unitPriceMeasurement.add("referenceValue");
+          });
         });
       });
-      root.addInlineFragmentOn("ManualDiscountApplication", function (ManualDiscountApplication) {
-        ManualDiscountApplication.add("title");
-        ManualDiscountApplication.add("description");
+      root.add("quantity");
+      root.add("attributes", function (attributes) {
+        attributes.add("key");
+        attributes.add("value");
       });
-      root.addInlineFragmentOn("DiscountCodeApplication", function (DiscountCodeApplication) {
-        DiscountCodeApplication.add("code");
-        DiscountCodeApplication.add("applicable");
+      root.add("cost", function (cost) {
+        cost.add("totalAmount", function (totalAmount) {
+          totalAmount.add("amount");
+          totalAmount.add("currencyCode");
+        });
+        cost.add("subtotalAmount", function (subtotalAmount) {
+          subtotalAmount.add("amount");
+          subtotalAmount.add("currencyCode");
+        });
+        cost.add("amountPerQuantity", function (amountPerQuantity) {
+          amountPerQuantity.add("amount");
+          amountPerQuantity.add("currencyCode");
+        });
+        cost.add("compareAtAmountPerQuantity", function (compareAtAmountPerQuantity) {
+          compareAtAmountPerQuantity.add("amount");
+          compareAtAmountPerQuantity.add("currencyCode");
+        });
       });
-      root.addInlineFragmentOn("ScriptDiscountApplication", function (ScriptDiscountApplication) {
-        ScriptDiscountApplication.add("title");
-      });
-      root.addInlineFragmentOn("AutomaticDiscountApplication", function (AutomaticDiscountApplication) {
-        AutomaticDiscountApplication.add("title");
+      root.add("discountAllocations", function (discountAllocations) {
+        discountAllocations.add("discountedAmount", function (discountedAmount) {
+          discountedAmount.add("amount");
+          discountedAmount.add("currencyCode");
+        });
+        discountAllocations.add("discountApplication", function (discountApplication) {
+          discountApplication.add("targetType");
+          discountApplication.add("allocationMethod");
+          discountApplication.add("targetSelection");
+          discountApplication.add("value", function (value) {
+            value.addInlineFragmentOn("PricingPercentageValue", function (PricingPercentageValue) {
+              PricingPercentageValue.add("percentage");
+            });
+            value.addInlineFragmentOn("MoneyV2", function (MoneyV2) {
+              MoneyV2.add("amount");
+              MoneyV2.add("currencyCode");
+            });
+          });
+        });
+        discountAllocations.addInlineFragmentOn("CartCodeDiscountAllocation", function (CartCodeDiscountAllocation) {
+          CartCodeDiscountAllocation.add("code");
+        });
+        discountAllocations.addInlineFragmentOn("CartAutomaticDiscountAllocation", function (CartAutomaticDiscountAllocation) {
+          CartAutomaticDiscountAllocation.add("title");
+        });
+        discountAllocations.addInlineFragmentOn("CartCustomDiscountAllocation", function (CartCustomDiscountAllocation) {
+          CartCustomDiscountAllocation.add("title");
+        });
       });
     });
     spreads.AppliedGiftCardFragment = document.defineFragment("AppliedGiftCardFragment", "AppliedGiftCard", function (root) {
@@ -4309,257 +5376,208 @@ var ShopifyBuy = (function () {
       root.add("id");
       root.add("lastCharacters");
     });
-    spreads.VariantWithProductFragment = document.defineFragment("VariantWithProductFragment", "ProductVariant", function (root) {
-      root.addFragment(spreads.VariantFragment);
-      root.add("product", function (product) {
-        product.add("id");
-        product.add("handle");
-      });
-    });
-    spreads.MailingAddressFragment = document.defineFragment("MailingAddressFragment", "MailingAddress", function (root) {
+    spreads.CartFragment = document.defineFragment("CartFragment", "Cart", function (root) {
       root.add("id");
-      root.add("address1");
-      root.add("address2");
-      root.add("city");
-      root.add("company");
-      root.add("country");
-      root.add("firstName");
-      root.add("formatted");
-      root.add("lastName");
-      root.add("latitude");
-      root.add("longitude");
-      root.add("phone");
-      root.add("province");
-      root.add("zip");
-      root.add("name");
-      root.add("countryCodeV2", {
-        alias: "countryCode"
-      });
-      root.add("provinceCode");
-    });
-    spreads.CheckoutFragment = document.defineFragment("CheckoutFragment", "Checkout", function (root) {
-      root.add("id");
-      root.add("ready");
-      root.add("requiresShipping");
-      root.add("note");
-      root.add("paymentDue", function (paymentDue) {
-        paymentDue.add("amount");
-        paymentDue.add("currencyCode");
-      });
-      root.add("paymentDue", {
-        alias: "paymentDueV2"
-      }, function (paymentDue) {
-        paymentDue.add("amount");
-        paymentDue.add("currencyCode");
-      });
-      root.add("webUrl");
-      root.add("orderStatusUrl");
-      root.add("taxExempt");
-      root.add("taxesIncluded");
-      root.add("currencyCode");
-      root.add("totalTax", function (totalTax) {
-        totalTax.add("amount");
-        totalTax.add("currencyCode");
-      });
-      root.add("totalTax", {
-        alias: "totalTaxV2"
-      }, function (totalTax) {
-        totalTax.add("amount");
-        totalTax.add("currencyCode");
-      });
-      root.add("lineItemsSubtotalPrice", function (lineItemsSubtotalPrice) {
-        lineItemsSubtotalPrice.add("amount");
-        lineItemsSubtotalPrice.add("currencyCode");
-      });
-      root.add("subtotalPrice", function (subtotalPrice) {
-        subtotalPrice.add("amount");
-        subtotalPrice.add("currencyCode");
-      });
-      root.add("subtotalPrice", {
-        alias: "subtotalPriceV2"
-      }, function (subtotalPrice) {
-        subtotalPrice.add("amount");
-        subtotalPrice.add("currencyCode");
-      });
-      root.add("totalPrice", function (totalPrice) {
-        totalPrice.add("amount");
-        totalPrice.add("currencyCode");
-      });
-      root.add("totalPrice", {
-        alias: "totalPriceV2"
-      }, function (totalPrice) {
-        totalPrice.add("amount");
-        totalPrice.add("currencyCode");
-      });
-      root.add("completedAt");
       root.add("createdAt");
       root.add("updatedAt");
-      root.add("email");
-      root.add("discountApplications", {
+      root.add("lines", {
         args: {
           first: 10
         }
-      }, function (discountApplications) {
-        discountApplications.add("pageInfo", function (pageInfo) {
+      }, function (lines) {
+        lines.add("pageInfo", function (pageInfo) {
           pageInfo.add("hasNextPage");
           pageInfo.add("hasPreviousPage");
         });
-        discountApplications.add("edges", function (edges) {
+        lines.add("edges", function (edges) {
           edges.add("node", function (node) {
-            node.addFragment(spreads.DiscountApplicationFragment);
+            node.addFragment(spreads.CartLineFragment);
+          });
+        });
+      });
+      root.add("attributes", function (attributes) {
+        attributes.add("key");
+        attributes.add("value");
+      });
+      root.add("cost", function (cost) {
+        cost.add("checkoutChargeAmount", function (checkoutChargeAmount) {
+          checkoutChargeAmount.add("amount");
+          checkoutChargeAmount.add("currencyCode");
+        });
+        cost.add("totalAmount", function (totalAmount) {
+          totalAmount.add("amount");
+          totalAmount.add("currencyCode");
+        });
+        cost.add("subtotalAmount", function (subtotalAmount) {
+          subtotalAmount.add("amount");
+          subtotalAmount.add("currencyCode");
+        });
+        cost.add("totalTaxAmount", function (totalTaxAmount) {
+          totalTaxAmount.add("amount");
+          totalTaxAmount.add("currencyCode");
+        });
+        cost.add("totalDutyAmount", function (totalDutyAmount) {
+          totalDutyAmount.add("amount");
+          totalDutyAmount.add("currencyCode");
+        });
+      });
+      root.add("checkoutUrl");
+      root.add("discountCodes", function (discountCodes) {
+        discountCodes.add("applicable");
+        discountCodes.add("code");
+      });
+      root.add("discountAllocations", function (discountAllocations) {
+        discountAllocations.add("discountedAmount", function (discountedAmount) {
+          discountedAmount.add("amount");
+          discountedAmount.add("currencyCode");
+        });
+        discountAllocations.add("discountApplication", function (discountApplication) {
+          discountApplication.add("targetType");
+          discountApplication.add("allocationMethod");
+          discountApplication.add("targetSelection");
+          discountApplication.add("value", function (value) {
+            value.addInlineFragmentOn("PricingPercentageValue", function (PricingPercentageValue) {
+              PricingPercentageValue.add("percentage");
+            });
+            value.addInlineFragmentOn("MoneyV2", function (MoneyV2) {
+              MoneyV2.add("amount");
+              MoneyV2.add("currencyCode");
+            });
+          });
+        });
+        discountAllocations.addInlineFragmentOn("CartCodeDiscountAllocation", function (CartCodeDiscountAllocation) {
+          CartCodeDiscountAllocation.add("code");
+        });
+        discountAllocations.addInlineFragmentOn("CartAutomaticDiscountAllocation", function (CartAutomaticDiscountAllocation) {
+          CartAutomaticDiscountAllocation.add("title");
+        });
+        discountAllocations.addInlineFragmentOn("CartCustomDiscountAllocation", function (CartCustomDiscountAllocation) {
+          CartCustomDiscountAllocation.add("title");
+        });
+      });
+      root.add("buyerIdentity", function (buyerIdentity) {
+        buyerIdentity.add("countryCode");
+        buyerIdentity.add("preferences", function (preferences) {
+          preferences.add("delivery", function (delivery) {
+            delivery.add("coordinates", function (coordinates) {
+              coordinates.add("latitude");
+              coordinates.add("longitude");
+              coordinates.add("countryCode");
+            });
+            delivery.add("deliveryMethod");
+            delivery.add("pickupHandle");
+          });
+          preferences.add("wallet");
+        });
+        buyerIdentity.add("email");
+        buyerIdentity.add("phone");
+        buyerIdentity.add("customer", function (customer) {
+          customer.add("email");
+        });
+        buyerIdentity.add("deliveryAddressPreferences", function (deliveryAddressPreferences) {
+          deliveryAddressPreferences.addInlineFragmentOn("MailingAddress", function (MailingAddress) {
+            MailingAddress.add("address1");
+            MailingAddress.add("address2");
+            MailingAddress.add("city");
+            MailingAddress.add("company");
+            MailingAddress.add("country");
+            MailingAddress.add("countryCodeV2");
+            MailingAddress.add("firstName");
+            MailingAddress.add("formatted");
+            MailingAddress.add("formattedArea");
+            MailingAddress.add("lastName");
+            MailingAddress.add("latitude");
+            MailingAddress.add("longitude");
+            MailingAddress.add("name");
+            MailingAddress.add("phone");
+            MailingAddress.add("province");
+            MailingAddress.add("provinceCode");
+            MailingAddress.add("zip");
+          });
+        });
+      });
+      root.add("deliveryGroups", {
+        args: {
+          first: 10
+        }
+      }, function (deliveryGroups) {
+        deliveryGroups.add("pageInfo", function (pageInfo) {
+          pageInfo.add("hasNextPage");
+          pageInfo.add("hasPreviousPage");
+        });
+        deliveryGroups.add("edges", function (edges) {
+          edges.add("node", function (node) {
+            node.add("id");
+            node.add("deliveryAddress", function (deliveryAddress) {
+              deliveryAddress.add("address2");
+              deliveryAddress.add("address1");
+              deliveryAddress.add("city");
+              deliveryAddress.add("company");
+              deliveryAddress.add("country");
+              deliveryAddress.add("countryCodeV2");
+              deliveryAddress.add("firstName");
+              deliveryAddress.add("formatted");
+              deliveryAddress.add("formattedArea");
+              deliveryAddress.add("lastName");
+              deliveryAddress.add("latitude");
+              deliveryAddress.add("longitude");
+              deliveryAddress.add("name");
+              deliveryAddress.add("phone");
+              deliveryAddress.add("province");
+              deliveryAddress.add("provinceCode");
+            });
+            node.add("deliveryOptions", function (deliveryOptions) {
+              deliveryOptions.add("code");
+              deliveryOptions.add("deliveryMethodType");
+              deliveryOptions.add("description");
+              deliveryOptions.add("estimatedCost", function (estimatedCost) {
+                estimatedCost.add("amount");
+                estimatedCost.add("currencyCode");
+              });
+              deliveryOptions.add("handle");
+              deliveryOptions.add("title");
+            });
+            node.add("selectedDeliveryOption", function (selectedDeliveryOption) {
+              selectedDeliveryOption.add("code");
+              selectedDeliveryOption.add("deliveryMethodType");
+              selectedDeliveryOption.add("description");
+              selectedDeliveryOption.add("estimatedCost", function (estimatedCost) {
+                estimatedCost.add("amount");
+                estimatedCost.add("currencyCode");
+              });
+              selectedDeliveryOption.add("handle");
+              selectedDeliveryOption.add("title");
+            });
+            node.add("cartLines", {
+              args: {
+                first: 10
+              }
+            }, function (cartLines) {
+              cartLines.add("pageInfo", function (pageInfo) {
+                pageInfo.add("hasNextPage");
+                pageInfo.add("hasPreviousPage");
+              });
+              cartLines.add("edges", function (edges) {
+                edges.add("node", function (node) {
+                  node.add("id");
+                });
+              });
+            });
           });
         });
       });
       root.add("appliedGiftCards", function (appliedGiftCards) {
         appliedGiftCards.addFragment(spreads.AppliedGiftCardFragment);
       });
-      root.add("shippingAddress", function (shippingAddress) {
-        shippingAddress.addFragment(spreads.MailingAddressFragment);
-      });
-      root.add("shippingLine", function (shippingLine) {
-        shippingLine.add("handle");
-        shippingLine.add("price", function (price) {
-          price.add("amount");
-          price.add("currencyCode");
-        });
-        shippingLine.add("price", {
-          alias: "priceV2"
-        }, function (price) {
-          price.add("amount");
-          price.add("currencyCode");
-        });
-        shippingLine.add("title");
-      });
-      root.add("customAttributes", function (customAttributes) {
-        customAttributes.add("key");
-        customAttributes.add("value");
-      });
-      root.add("order", function (order) {
-        order.add("id");
-        order.add("processedAt");
-        order.add("orderNumber");
-        order.add("subtotalPrice", function (subtotalPrice) {
-          subtotalPrice.add("amount");
-          subtotalPrice.add("currencyCode");
-        });
-        order.add("subtotalPrice", {
-          alias: "subtotalPriceV2"
-        }, function (subtotalPrice) {
-          subtotalPrice.add("amount");
-          subtotalPrice.add("currencyCode");
-        });
-        order.add("totalShippingPrice", function (totalShippingPrice) {
-          totalShippingPrice.add("amount");
-          totalShippingPrice.add("currencyCode");
-        });
-        order.add("totalShippingPrice", {
-          alias: "totalShippingPriceV2"
-        }, function (totalShippingPrice) {
-          totalShippingPrice.add("amount");
-          totalShippingPrice.add("currencyCode");
-        });
-        order.add("totalTax", function (totalTax) {
-          totalTax.add("amount");
-          totalTax.add("currencyCode");
-        });
-        order.add("totalTax", {
-          alias: "totalTaxV2"
-        }, function (totalTax) {
-          totalTax.add("amount");
-          totalTax.add("currencyCode");
-        });
-        order.add("totalPrice", function (totalPrice) {
-          totalPrice.add("amount");
-          totalPrice.add("currencyCode");
-        });
-        order.add("totalPrice", {
-          alias: "totalPriceV2"
-        }, function (totalPrice) {
-          totalPrice.add("amount");
-          totalPrice.add("currencyCode");
-        });
-        order.add("currencyCode");
-        order.add("totalRefunded", function (totalRefunded) {
-          totalRefunded.add("amount");
-          totalRefunded.add("currencyCode");
-        });
-        order.add("totalRefunded", {
-          alias: "totalRefundedV2"
-        }, function (totalRefunded) {
-          totalRefunded.add("amount");
-          totalRefunded.add("currencyCode");
-        });
-        order.add("customerUrl");
-        order.add("shippingAddress", function (shippingAddress) {
-          shippingAddress.addFragment(spreads.MailingAddressFragment);
-        });
-        order.add("lineItems", {
-          args: {
-            first: 250
-          }
-        }, function (lineItems) {
-          lineItems.add("pageInfo", function (pageInfo) {
-            pageInfo.add("hasNextPage");
-            pageInfo.add("hasPreviousPage");
-          });
-          lineItems.add("edges", function (edges) {
-            edges.add("cursor");
-            edges.add("node", function (node) {
-              node.add("title");
-              node.add("variant", function (variant) {
-                variant.addFragment(spreads.VariantWithProductFragment);
-              });
-              node.add("quantity");
-              node.add("customAttributes", function (customAttributes) {
-                customAttributes.add("key");
-                customAttributes.add("value");
-              });
-            });
-          });
-        });
-      });
-      root.add("lineItems", {
-        args: {
-          first: 250
-        }
-      }, function (lineItems) {
-        lineItems.add("pageInfo", function (pageInfo) {
-          pageInfo.add("hasNextPage");
-          pageInfo.add("hasPreviousPage");
-        });
-        lineItems.add("edges", function (edges) {
-          edges.add("cursor");
-          edges.add("node", function (node) {
-            node.add("id");
-            node.add("title");
-            node.add("variant", function (variant) {
-              variant.addFragment(spreads.VariantWithProductFragment);
-            });
-            node.add("quantity");
-            node.add("customAttributes", function (customAttributes) {
-              customAttributes.add("key");
-              customAttributes.add("value");
-            });
-            node.add("discountAllocations", function (discountAllocations) {
-              discountAllocations.add("allocatedAmount", function (allocatedAmount) {
-                allocatedAmount.add("amount");
-                allocatedAmount.add("currencyCode");
-              });
-              discountAllocations.add("discountApplication", function (discountApplication) {
-                discountApplication.addFragment(spreads.DiscountApplicationFragment);
-              });
-            });
-          });
-        });
-      });
+      root.add("note");
     });
-    document.addQuery([variables.__defaultOperation__.id], function (root) {
-      root.add("node", {
+    document.addQuery("Cart", [variables.Cart.id], function (root) {
+      root.add("cart", {
         args: {
-          id: variables.__defaultOperation__.id
+          id: variables.Cart.id
         }
-      }, function (node) {
-        node.addFragment(spreads.CheckoutFragment);
+      }, function (cart) {
+        cart.addFragment(spreads.CartFragment);
       });
     });
     return document;
@@ -4569,87 +5587,109 @@ var ShopifyBuy = (function () {
     var document = client.document();
     var spreads = {};
     var variables = {};
-    variables.__defaultOperation__ = {};
-    variables.__defaultOperation__.input = client.variable("input", "CheckoutCreateInput!");
-    spreads.VariantFragment = document.defineFragment("VariantFragment", "ProductVariant", function (root) {
+    variables.CartCreate = {};
+    variables.CartCreate.input = client.variable("input", "CartInput!");
+    spreads.CartLineFragment = document.defineFragment("CartLineFragment", "CartLine", function (root) {
       root.add("id");
-      root.add("title");
-      root.add("price", function (price) {
-        price.add("amount");
-        price.add("currencyCode");
-      });
-      root.add("price", {
-        alias: "priceV2"
-      }, function (price) {
-        price.add("amount");
-        price.add("currencyCode");
-      });
-      root.add("weight");
-      root.add("availableForSale", {
-        alias: "available"
-      });
-      root.add("sku");
-      root.add("compareAtPrice", function (compareAtPrice) {
-        compareAtPrice.add("amount");
-        compareAtPrice.add("currencyCode");
-      });
-      root.add("compareAtPrice", {
-        alias: "compareAtPriceV2"
-      }, function (compareAtPrice) {
-        compareAtPrice.add("amount");
-        compareAtPrice.add("currencyCode");
-      });
-      root.add("image", function (image) {
-        image.add("id");
-        image.add("url", {
-          alias: "src"
-        });
-        image.add("altText");
-        image.add("width");
-        image.add("height");
-      });
-      root.add("selectedOptions", function (selectedOptions) {
-        selectedOptions.add("name");
-        selectedOptions.add("value");
-      });
-      root.add("unitPrice", function (unitPrice) {
-        unitPrice.add("amount");
-        unitPrice.add("currencyCode");
-      });
-      root.add("unitPriceMeasurement", function (unitPriceMeasurement) {
-        unitPriceMeasurement.add("measuredType");
-        unitPriceMeasurement.add("quantityUnit");
-        unitPriceMeasurement.add("quantityValue");
-        unitPriceMeasurement.add("referenceUnit");
-        unitPriceMeasurement.add("referenceValue");
-      });
-    });
-    spreads.DiscountApplicationFragment = document.defineFragment("DiscountApplicationFragment", "DiscountApplication", function (root) {
-      root.add("targetSelection");
-      root.add("allocationMethod");
-      root.add("targetType");
-      root.add("value", function (value) {
-        value.addInlineFragmentOn("MoneyV2", function (MoneyV2) {
-          MoneyV2.add("amount");
-          MoneyV2.add("currencyCode");
-        });
-        value.addInlineFragmentOn("PricingPercentageValue", function (PricingPercentageValue) {
-          PricingPercentageValue.add("percentage");
+      root.add("merchandise", function (merchandise) {
+        merchandise.addInlineFragmentOn("ProductVariant", function (ProductVariant) {
+          ProductVariant.add("id");
+          ProductVariant.add("title");
+          ProductVariant.add("image", function (image) {
+            image.add("id");
+            image.add("url", {
+              alias: "src"
+            });
+            image.add("altText");
+            image.add("width");
+            image.add("height");
+          });
+          ProductVariant.add("product", function (product) {
+            product.add("id");
+            product.add("handle");
+            product.add("title");
+          });
+          ProductVariant.add("weight");
+          ProductVariant.add("availableForSale", {
+            alias: "available"
+          });
+          ProductVariant.add("sku");
+          ProductVariant.add("selectedOptions", function (selectedOptions) {
+            selectedOptions.add("name");
+            selectedOptions.add("value");
+          });
+          ProductVariant.add("compareAtPrice", function (compareAtPrice) {
+            compareAtPrice.add("amount");
+            compareAtPrice.add("currencyCode");
+          });
+          ProductVariant.add("price", function (price) {
+            price.add("amount");
+            price.add("currencyCode");
+          });
+          ProductVariant.add("unitPrice", function (unitPrice) {
+            unitPrice.add("amount");
+            unitPrice.add("currencyCode");
+          });
+          ProductVariant.add("unitPriceMeasurement", function (unitPriceMeasurement) {
+            unitPriceMeasurement.add("measuredType");
+            unitPriceMeasurement.add("quantityUnit");
+            unitPriceMeasurement.add("quantityValue");
+            unitPriceMeasurement.add("referenceUnit");
+            unitPriceMeasurement.add("referenceValue");
+          });
         });
       });
-      root.addInlineFragmentOn("ManualDiscountApplication", function (ManualDiscountApplication) {
-        ManualDiscountApplication.add("title");
-        ManualDiscountApplication.add("description");
+      root.add("quantity");
+      root.add("attributes", function (attributes) {
+        attributes.add("key");
+        attributes.add("value");
       });
-      root.addInlineFragmentOn("DiscountCodeApplication", function (DiscountCodeApplication) {
-        DiscountCodeApplication.add("code");
-        DiscountCodeApplication.add("applicable");
+      root.add("cost", function (cost) {
+        cost.add("totalAmount", function (totalAmount) {
+          totalAmount.add("amount");
+          totalAmount.add("currencyCode");
+        });
+        cost.add("subtotalAmount", function (subtotalAmount) {
+          subtotalAmount.add("amount");
+          subtotalAmount.add("currencyCode");
+        });
+        cost.add("amountPerQuantity", function (amountPerQuantity) {
+          amountPerQuantity.add("amount");
+          amountPerQuantity.add("currencyCode");
+        });
+        cost.add("compareAtAmountPerQuantity", function (compareAtAmountPerQuantity) {
+          compareAtAmountPerQuantity.add("amount");
+          compareAtAmountPerQuantity.add("currencyCode");
+        });
       });
-      root.addInlineFragmentOn("ScriptDiscountApplication", function (ScriptDiscountApplication) {
-        ScriptDiscountApplication.add("title");
-      });
-      root.addInlineFragmentOn("AutomaticDiscountApplication", function (AutomaticDiscountApplication) {
-        AutomaticDiscountApplication.add("title");
+      root.add("discountAllocations", function (discountAllocations) {
+        discountAllocations.add("discountedAmount", function (discountedAmount) {
+          discountedAmount.add("amount");
+          discountedAmount.add("currencyCode");
+        });
+        discountAllocations.add("discountApplication", function (discountApplication) {
+          discountApplication.add("targetType");
+          discountApplication.add("allocationMethod");
+          discountApplication.add("targetSelection");
+          discountApplication.add("value", function (value) {
+            value.addInlineFragmentOn("PricingPercentageValue", function (PricingPercentageValue) {
+              PricingPercentageValue.add("percentage");
+            });
+            value.addInlineFragmentOn("MoneyV2", function (MoneyV2) {
+              MoneyV2.add("amount");
+              MoneyV2.add("currencyCode");
+            });
+          });
+        });
+        discountAllocations.addInlineFragmentOn("CartCodeDiscountAllocation", function (CartCodeDiscountAllocation) {
+          CartCodeDiscountAllocation.add("code");
+        });
+        discountAllocations.addInlineFragmentOn("CartAutomaticDiscountAllocation", function (CartAutomaticDiscountAllocation) {
+          CartAutomaticDiscountAllocation.add("title");
+        });
+        discountAllocations.addInlineFragmentOn("CartCustomDiscountAllocation", function (CartCustomDiscountAllocation) {
+          CartCustomDiscountAllocation.add("title");
+        });
       });
     });
     spreads.AppliedGiftCardFragment = document.defineFragment("AppliedGiftCardFragment", "AppliedGiftCard", function (root) {
@@ -4680,273 +5720,224 @@ var ShopifyBuy = (function () {
       root.add("id");
       root.add("lastCharacters");
     });
-    spreads.VariantWithProductFragment = document.defineFragment("VariantWithProductFragment", "ProductVariant", function (root) {
-      root.addFragment(spreads.VariantFragment);
-      root.add("product", function (product) {
-        product.add("id");
-        product.add("handle");
-      });
-    });
-    spreads.UserErrorFragment = document.defineFragment("UserErrorFragment", "UserError", function (root) {
-      root.add("field");
-      root.add("message");
-    });
-    spreads.CheckoutUserErrorFragment = document.defineFragment("CheckoutUserErrorFragment", "CheckoutUserError", function (root) {
-      root.add("field");
-      root.add("message");
-      root.add("code");
-    });
-    spreads.MailingAddressFragment = document.defineFragment("MailingAddressFragment", "MailingAddress", function (root) {
+    spreads.CartFragment = document.defineFragment("CartFragment", "Cart", function (root) {
       root.add("id");
-      root.add("address1");
-      root.add("address2");
-      root.add("city");
-      root.add("company");
-      root.add("country");
-      root.add("firstName");
-      root.add("formatted");
-      root.add("lastName");
-      root.add("latitude");
-      root.add("longitude");
-      root.add("phone");
-      root.add("province");
-      root.add("zip");
-      root.add("name");
-      root.add("countryCodeV2", {
-        alias: "countryCode"
-      });
-      root.add("provinceCode");
-    });
-    spreads.CheckoutFragment = document.defineFragment("CheckoutFragment", "Checkout", function (root) {
-      root.add("id");
-      root.add("ready");
-      root.add("requiresShipping");
-      root.add("note");
-      root.add("paymentDue", function (paymentDue) {
-        paymentDue.add("amount");
-        paymentDue.add("currencyCode");
-      });
-      root.add("paymentDue", {
-        alias: "paymentDueV2"
-      }, function (paymentDue) {
-        paymentDue.add("amount");
-        paymentDue.add("currencyCode");
-      });
-      root.add("webUrl");
-      root.add("orderStatusUrl");
-      root.add("taxExempt");
-      root.add("taxesIncluded");
-      root.add("currencyCode");
-      root.add("totalTax", function (totalTax) {
-        totalTax.add("amount");
-        totalTax.add("currencyCode");
-      });
-      root.add("totalTax", {
-        alias: "totalTaxV2"
-      }, function (totalTax) {
-        totalTax.add("amount");
-        totalTax.add("currencyCode");
-      });
-      root.add("lineItemsSubtotalPrice", function (lineItemsSubtotalPrice) {
-        lineItemsSubtotalPrice.add("amount");
-        lineItemsSubtotalPrice.add("currencyCode");
-      });
-      root.add("subtotalPrice", function (subtotalPrice) {
-        subtotalPrice.add("amount");
-        subtotalPrice.add("currencyCode");
-      });
-      root.add("subtotalPrice", {
-        alias: "subtotalPriceV2"
-      }, function (subtotalPrice) {
-        subtotalPrice.add("amount");
-        subtotalPrice.add("currencyCode");
-      });
-      root.add("totalPrice", function (totalPrice) {
-        totalPrice.add("amount");
-        totalPrice.add("currencyCode");
-      });
-      root.add("totalPrice", {
-        alias: "totalPriceV2"
-      }, function (totalPrice) {
-        totalPrice.add("amount");
-        totalPrice.add("currencyCode");
-      });
-      root.add("completedAt");
       root.add("createdAt");
       root.add("updatedAt");
-      root.add("email");
-      root.add("discountApplications", {
+      root.add("lines", {
         args: {
           first: 10
         }
-      }, function (discountApplications) {
-        discountApplications.add("pageInfo", function (pageInfo) {
+      }, function (lines) {
+        lines.add("pageInfo", function (pageInfo) {
           pageInfo.add("hasNextPage");
           pageInfo.add("hasPreviousPage");
         });
-        discountApplications.add("edges", function (edges) {
+        lines.add("edges", function (edges) {
           edges.add("node", function (node) {
-            node.addFragment(spreads.DiscountApplicationFragment);
+            node.addFragment(spreads.CartLineFragment);
+          });
+        });
+      });
+      root.add("attributes", function (attributes) {
+        attributes.add("key");
+        attributes.add("value");
+      });
+      root.add("cost", function (cost) {
+        cost.add("checkoutChargeAmount", function (checkoutChargeAmount) {
+          checkoutChargeAmount.add("amount");
+          checkoutChargeAmount.add("currencyCode");
+        });
+        cost.add("totalAmount", function (totalAmount) {
+          totalAmount.add("amount");
+          totalAmount.add("currencyCode");
+        });
+        cost.add("subtotalAmount", function (subtotalAmount) {
+          subtotalAmount.add("amount");
+          subtotalAmount.add("currencyCode");
+        });
+        cost.add("totalTaxAmount", function (totalTaxAmount) {
+          totalTaxAmount.add("amount");
+          totalTaxAmount.add("currencyCode");
+        });
+        cost.add("totalDutyAmount", function (totalDutyAmount) {
+          totalDutyAmount.add("amount");
+          totalDutyAmount.add("currencyCode");
+        });
+      });
+      root.add("checkoutUrl");
+      root.add("discountCodes", function (discountCodes) {
+        discountCodes.add("applicable");
+        discountCodes.add("code");
+      });
+      root.add("discountAllocations", function (discountAllocations) {
+        discountAllocations.add("discountedAmount", function (discountedAmount) {
+          discountedAmount.add("amount");
+          discountedAmount.add("currencyCode");
+        });
+        discountAllocations.add("discountApplication", function (discountApplication) {
+          discountApplication.add("targetType");
+          discountApplication.add("allocationMethod");
+          discountApplication.add("targetSelection");
+          discountApplication.add("value", function (value) {
+            value.addInlineFragmentOn("PricingPercentageValue", function (PricingPercentageValue) {
+              PricingPercentageValue.add("percentage");
+            });
+            value.addInlineFragmentOn("MoneyV2", function (MoneyV2) {
+              MoneyV2.add("amount");
+              MoneyV2.add("currencyCode");
+            });
+          });
+        });
+        discountAllocations.addInlineFragmentOn("CartCodeDiscountAllocation", function (CartCodeDiscountAllocation) {
+          CartCodeDiscountAllocation.add("code");
+        });
+        discountAllocations.addInlineFragmentOn("CartAutomaticDiscountAllocation", function (CartAutomaticDiscountAllocation) {
+          CartAutomaticDiscountAllocation.add("title");
+        });
+        discountAllocations.addInlineFragmentOn("CartCustomDiscountAllocation", function (CartCustomDiscountAllocation) {
+          CartCustomDiscountAllocation.add("title");
+        });
+      });
+      root.add("buyerIdentity", function (buyerIdentity) {
+        buyerIdentity.add("countryCode");
+        buyerIdentity.add("preferences", function (preferences) {
+          preferences.add("delivery", function (delivery) {
+            delivery.add("coordinates", function (coordinates) {
+              coordinates.add("latitude");
+              coordinates.add("longitude");
+              coordinates.add("countryCode");
+            });
+            delivery.add("deliveryMethod");
+            delivery.add("pickupHandle");
+          });
+          preferences.add("wallet");
+        });
+        buyerIdentity.add("email");
+        buyerIdentity.add("phone");
+        buyerIdentity.add("customer", function (customer) {
+          customer.add("email");
+        });
+        buyerIdentity.add("deliveryAddressPreferences", function (deliveryAddressPreferences) {
+          deliveryAddressPreferences.addInlineFragmentOn("MailingAddress", function (MailingAddress) {
+            MailingAddress.add("address1");
+            MailingAddress.add("address2");
+            MailingAddress.add("city");
+            MailingAddress.add("company");
+            MailingAddress.add("country");
+            MailingAddress.add("countryCodeV2");
+            MailingAddress.add("firstName");
+            MailingAddress.add("formatted");
+            MailingAddress.add("formattedArea");
+            MailingAddress.add("lastName");
+            MailingAddress.add("latitude");
+            MailingAddress.add("longitude");
+            MailingAddress.add("name");
+            MailingAddress.add("phone");
+            MailingAddress.add("province");
+            MailingAddress.add("provinceCode");
+            MailingAddress.add("zip");
+          });
+        });
+      });
+      root.add("deliveryGroups", {
+        args: {
+          first: 10
+        }
+      }, function (deliveryGroups) {
+        deliveryGroups.add("pageInfo", function (pageInfo) {
+          pageInfo.add("hasNextPage");
+          pageInfo.add("hasPreviousPage");
+        });
+        deliveryGroups.add("edges", function (edges) {
+          edges.add("node", function (node) {
+            node.add("id");
+            node.add("deliveryAddress", function (deliveryAddress) {
+              deliveryAddress.add("address2");
+              deliveryAddress.add("address1");
+              deliveryAddress.add("city");
+              deliveryAddress.add("company");
+              deliveryAddress.add("country");
+              deliveryAddress.add("countryCodeV2");
+              deliveryAddress.add("firstName");
+              deliveryAddress.add("formatted");
+              deliveryAddress.add("formattedArea");
+              deliveryAddress.add("lastName");
+              deliveryAddress.add("latitude");
+              deliveryAddress.add("longitude");
+              deliveryAddress.add("name");
+              deliveryAddress.add("phone");
+              deliveryAddress.add("province");
+              deliveryAddress.add("provinceCode");
+            });
+            node.add("deliveryOptions", function (deliveryOptions) {
+              deliveryOptions.add("code");
+              deliveryOptions.add("deliveryMethodType");
+              deliveryOptions.add("description");
+              deliveryOptions.add("estimatedCost", function (estimatedCost) {
+                estimatedCost.add("amount");
+                estimatedCost.add("currencyCode");
+              });
+              deliveryOptions.add("handle");
+              deliveryOptions.add("title");
+            });
+            node.add("selectedDeliveryOption", function (selectedDeliveryOption) {
+              selectedDeliveryOption.add("code");
+              selectedDeliveryOption.add("deliveryMethodType");
+              selectedDeliveryOption.add("description");
+              selectedDeliveryOption.add("estimatedCost", function (estimatedCost) {
+                estimatedCost.add("amount");
+                estimatedCost.add("currencyCode");
+              });
+              selectedDeliveryOption.add("handle");
+              selectedDeliveryOption.add("title");
+            });
+            node.add("cartLines", {
+              args: {
+                first: 10
+              }
+            }, function (cartLines) {
+              cartLines.add("pageInfo", function (pageInfo) {
+                pageInfo.add("hasNextPage");
+                pageInfo.add("hasPreviousPage");
+              });
+              cartLines.add("edges", function (edges) {
+                edges.add("node", function (node) {
+                  node.add("id");
+                });
+              });
+            });
           });
         });
       });
       root.add("appliedGiftCards", function (appliedGiftCards) {
         appliedGiftCards.addFragment(spreads.AppliedGiftCardFragment);
       });
-      root.add("shippingAddress", function (shippingAddress) {
-        shippingAddress.addFragment(spreads.MailingAddressFragment);
-      });
-      root.add("shippingLine", function (shippingLine) {
-        shippingLine.add("handle");
-        shippingLine.add("price", function (price) {
-          price.add("amount");
-          price.add("currencyCode");
-        });
-        shippingLine.add("price", {
-          alias: "priceV2"
-        }, function (price) {
-          price.add("amount");
-          price.add("currencyCode");
-        });
-        shippingLine.add("title");
-      });
-      root.add("customAttributes", function (customAttributes) {
-        customAttributes.add("key");
-        customAttributes.add("value");
-      });
-      root.add("order", function (order) {
-        order.add("id");
-        order.add("processedAt");
-        order.add("orderNumber");
-        order.add("subtotalPrice", function (subtotalPrice) {
-          subtotalPrice.add("amount");
-          subtotalPrice.add("currencyCode");
-        });
-        order.add("subtotalPrice", {
-          alias: "subtotalPriceV2"
-        }, function (subtotalPrice) {
-          subtotalPrice.add("amount");
-          subtotalPrice.add("currencyCode");
-        });
-        order.add("totalShippingPrice", function (totalShippingPrice) {
-          totalShippingPrice.add("amount");
-          totalShippingPrice.add("currencyCode");
-        });
-        order.add("totalShippingPrice", {
-          alias: "totalShippingPriceV2"
-        }, function (totalShippingPrice) {
-          totalShippingPrice.add("amount");
-          totalShippingPrice.add("currencyCode");
-        });
-        order.add("totalTax", function (totalTax) {
-          totalTax.add("amount");
-          totalTax.add("currencyCode");
-        });
-        order.add("totalTax", {
-          alias: "totalTaxV2"
-        }, function (totalTax) {
-          totalTax.add("amount");
-          totalTax.add("currencyCode");
-        });
-        order.add("totalPrice", function (totalPrice) {
-          totalPrice.add("amount");
-          totalPrice.add("currencyCode");
-        });
-        order.add("totalPrice", {
-          alias: "totalPriceV2"
-        }, function (totalPrice) {
-          totalPrice.add("amount");
-          totalPrice.add("currencyCode");
-        });
-        order.add("currencyCode");
-        order.add("totalRefunded", function (totalRefunded) {
-          totalRefunded.add("amount");
-          totalRefunded.add("currencyCode");
-        });
-        order.add("totalRefunded", {
-          alias: "totalRefundedV2"
-        }, function (totalRefunded) {
-          totalRefunded.add("amount");
-          totalRefunded.add("currencyCode");
-        });
-        order.add("customerUrl");
-        order.add("shippingAddress", function (shippingAddress) {
-          shippingAddress.addFragment(spreads.MailingAddressFragment);
-        });
-        order.add("lineItems", {
-          args: {
-            first: 250
-          }
-        }, function (lineItems) {
-          lineItems.add("pageInfo", function (pageInfo) {
-            pageInfo.add("hasNextPage");
-            pageInfo.add("hasPreviousPage");
-          });
-          lineItems.add("edges", function (edges) {
-            edges.add("cursor");
-            edges.add("node", function (node) {
-              node.add("title");
-              node.add("variant", function (variant) {
-                variant.addFragment(spreads.VariantWithProductFragment);
-              });
-              node.add("quantity");
-              node.add("customAttributes", function (customAttributes) {
-                customAttributes.add("key");
-                customAttributes.add("value");
-              });
-            });
-          });
-        });
-      });
-      root.add("lineItems", {
-        args: {
-          first: 250
-        }
-      }, function (lineItems) {
-        lineItems.add("pageInfo", function (pageInfo) {
-          pageInfo.add("hasNextPage");
-          pageInfo.add("hasPreviousPage");
-        });
-        lineItems.add("edges", function (edges) {
-          edges.add("cursor");
-          edges.add("node", function (node) {
-            node.add("id");
-            node.add("title");
-            node.add("variant", function (variant) {
-              variant.addFragment(spreads.VariantWithProductFragment);
-            });
-            node.add("quantity");
-            node.add("customAttributes", function (customAttributes) {
-              customAttributes.add("key");
-              customAttributes.add("value");
-            });
-            node.add("discountAllocations", function (discountAllocations) {
-              discountAllocations.add("allocatedAmount", function (allocatedAmount) {
-                allocatedAmount.add("amount");
-                allocatedAmount.add("currencyCode");
-              });
-              discountAllocations.add("discountApplication", function (discountApplication) {
-                discountApplication.addFragment(spreads.DiscountApplicationFragment);
-              });
-            });
-          });
-        });
-      });
+      root.add("note");
     });
-    document.addMutation([variables.__defaultOperation__.input], function (root) {
-      root.add("checkoutCreate", {
+    spreads.CartUserErrorFragment = document.defineFragment("CartUserErrorFragment", "CartUserError", function (root) {
+      root.add("field");
+      root.add("message");
+      root.add("code");
+    });
+    spreads.CartWarningFragment = document.defineFragment("CartWarningFragment", "CartWarning", function (root) {
+      root.add("code");
+      root.add("message");
+    });
+    document.addMutation("CartCreate", [variables.CartCreate.input], function (root) {
+      root.add("cartCreate", {
         args: {
-          input: variables.__defaultOperation__.input
+          input: variables.CartCreate.input
         }
-      }, function (checkoutCreate) {
-        checkoutCreate.add("userErrors", function (userErrors) {
-          userErrors.addFragment(spreads.UserErrorFragment);
+      }, function (cartCreate) {
+        cartCreate.add("cart", function (cart) {
+          cart.addFragment(spreads.CartFragment);
         });
-        checkoutCreate.add("checkoutUserErrors", function (checkoutUserErrors) {
-          checkoutUserErrors.addFragment(spreads.CheckoutUserErrorFragment);
+        cartCreate.add("userErrors", function (userErrors) {
+          userErrors.addFragment(spreads.CartUserErrorFragment);
         });
-        checkoutCreate.add("checkout", function (checkout) {
-          checkout.addFragment(spreads.CheckoutFragment);
+        cartCreate.add("warnings", function (warnings) {
+          warnings.addFragment(spreads.CartWarningFragment);
         });
       });
     });
@@ -4957,88 +5948,110 @@ var ShopifyBuy = (function () {
     var document = client.document();
     var spreads = {};
     var variables = {};
-    variables.__defaultOperation__ = {};
-    variables.__defaultOperation__.checkoutId = client.variable("checkoutId", "ID!");
-    variables.__defaultOperation__.lineItems = client.variable("lineItems", "[CheckoutLineItemInput!]!");
-    spreads.VariantFragment = document.defineFragment("VariantFragment", "ProductVariant", function (root) {
+    variables.CartAttributesUpdate = {};
+    variables.CartAttributesUpdate.attributes = client.variable("attributes", "[AttributeInput!]!");
+    variables.CartAttributesUpdate.cartId = client.variable("cartId", "ID!");
+    spreads.CartLineFragment = document.defineFragment("CartLineFragment", "CartLine", function (root) {
       root.add("id");
-      root.add("title");
-      root.add("price", function (price) {
-        price.add("amount");
-        price.add("currencyCode");
-      });
-      root.add("price", {
-        alias: "priceV2"
-      }, function (price) {
-        price.add("amount");
-        price.add("currencyCode");
-      });
-      root.add("weight");
-      root.add("availableForSale", {
-        alias: "available"
-      });
-      root.add("sku");
-      root.add("compareAtPrice", function (compareAtPrice) {
-        compareAtPrice.add("amount");
-        compareAtPrice.add("currencyCode");
-      });
-      root.add("compareAtPrice", {
-        alias: "compareAtPriceV2"
-      }, function (compareAtPrice) {
-        compareAtPrice.add("amount");
-        compareAtPrice.add("currencyCode");
-      });
-      root.add("image", function (image) {
-        image.add("id");
-        image.add("url", {
-          alias: "src"
-        });
-        image.add("altText");
-        image.add("width");
-        image.add("height");
-      });
-      root.add("selectedOptions", function (selectedOptions) {
-        selectedOptions.add("name");
-        selectedOptions.add("value");
-      });
-      root.add("unitPrice", function (unitPrice) {
-        unitPrice.add("amount");
-        unitPrice.add("currencyCode");
-      });
-      root.add("unitPriceMeasurement", function (unitPriceMeasurement) {
-        unitPriceMeasurement.add("measuredType");
-        unitPriceMeasurement.add("quantityUnit");
-        unitPriceMeasurement.add("quantityValue");
-        unitPriceMeasurement.add("referenceUnit");
-        unitPriceMeasurement.add("referenceValue");
-      });
-    });
-    spreads.DiscountApplicationFragment = document.defineFragment("DiscountApplicationFragment", "DiscountApplication", function (root) {
-      root.add("targetSelection");
-      root.add("allocationMethod");
-      root.add("targetType");
-      root.add("value", function (value) {
-        value.addInlineFragmentOn("MoneyV2", function (MoneyV2) {
-          MoneyV2.add("amount");
-          MoneyV2.add("currencyCode");
-        });
-        value.addInlineFragmentOn("PricingPercentageValue", function (PricingPercentageValue) {
-          PricingPercentageValue.add("percentage");
+      root.add("merchandise", function (merchandise) {
+        merchandise.addInlineFragmentOn("ProductVariant", function (ProductVariant) {
+          ProductVariant.add("id");
+          ProductVariant.add("title");
+          ProductVariant.add("image", function (image) {
+            image.add("id");
+            image.add("url", {
+              alias: "src"
+            });
+            image.add("altText");
+            image.add("width");
+            image.add("height");
+          });
+          ProductVariant.add("product", function (product) {
+            product.add("id");
+            product.add("handle");
+            product.add("title");
+          });
+          ProductVariant.add("weight");
+          ProductVariant.add("availableForSale", {
+            alias: "available"
+          });
+          ProductVariant.add("sku");
+          ProductVariant.add("selectedOptions", function (selectedOptions) {
+            selectedOptions.add("name");
+            selectedOptions.add("value");
+          });
+          ProductVariant.add("compareAtPrice", function (compareAtPrice) {
+            compareAtPrice.add("amount");
+            compareAtPrice.add("currencyCode");
+          });
+          ProductVariant.add("price", function (price) {
+            price.add("amount");
+            price.add("currencyCode");
+          });
+          ProductVariant.add("unitPrice", function (unitPrice) {
+            unitPrice.add("amount");
+            unitPrice.add("currencyCode");
+          });
+          ProductVariant.add("unitPriceMeasurement", function (unitPriceMeasurement) {
+            unitPriceMeasurement.add("measuredType");
+            unitPriceMeasurement.add("quantityUnit");
+            unitPriceMeasurement.add("quantityValue");
+            unitPriceMeasurement.add("referenceUnit");
+            unitPriceMeasurement.add("referenceValue");
+          });
         });
       });
-      root.addInlineFragmentOn("ManualDiscountApplication", function (ManualDiscountApplication) {
-        ManualDiscountApplication.add("title");
-        ManualDiscountApplication.add("description");
+      root.add("quantity");
+      root.add("attributes", function (attributes) {
+        attributes.add("key");
+        attributes.add("value");
       });
-      root.addInlineFragmentOn("DiscountCodeApplication", function (DiscountCodeApplication) {
-        DiscountCodeApplication.add("code");
-        DiscountCodeApplication.add("applicable");
+      root.add("cost", function (cost) {
+        cost.add("totalAmount", function (totalAmount) {
+          totalAmount.add("amount");
+          totalAmount.add("currencyCode");
+        });
+        cost.add("subtotalAmount", function (subtotalAmount) {
+          subtotalAmount.add("amount");
+          subtotalAmount.add("currencyCode");
+        });
+        cost.add("amountPerQuantity", function (amountPerQuantity) {
+          amountPerQuantity.add("amount");
+          amountPerQuantity.add("currencyCode");
+        });
+        cost.add("compareAtAmountPerQuantity", function (compareAtAmountPerQuantity) {
+          compareAtAmountPerQuantity.add("amount");
+          compareAtAmountPerQuantity.add("currencyCode");
+        });
       });
-      root.addInlineFragmentOn("ScriptDiscountApplication", function (ScriptDiscountApplication) {
-        ScriptDiscountApplication.add("title");
-      });
-      root.addInlineFragmentOn("AutomaticDiscountApplication", function (AutomaticDiscountApplication) {
-        AutomaticDiscountApplication.add("title");
+      root.add("discountAllocations", function (discountAllocations) {
+        discountAllocations.add("discountedAmount", function (discountedAmount) {
+          discountedAmount.add("amount");
+          discountedAmount.add("currencyCode");
+        });
+        discountAllocations.add("discountApplication", function (discountApplication) {
+          discountApplication.add("targetType");
+          discountApplication.add("allocationMethod");
+          discountApplication.add("targetSelection");
+          discountApplication.add("value", function (value) {
+            value.addInlineFragmentOn("PricingPercentageValue", function (PricingPercentageValue) {
+              PricingPercentageValue.add("percentage");
+            });
+            value.addInlineFragmentOn("MoneyV2", function (MoneyV2) {
+              MoneyV2.add("amount");
+              MoneyV2.add("currencyCode");
+            });
+          });
+        });
+        discountAllocations.addInlineFragmentOn("CartCodeDiscountAllocation", function (CartCodeDiscountAllocation) {
+          CartCodeDiscountAllocation.add("code");
+        });
+        discountAllocations.addInlineFragmentOn("CartAutomaticDiscountAllocation", function (CartAutomaticDiscountAllocation) {
+          CartAutomaticDiscountAllocation.add("title");
+        });
+        discountAllocations.addInlineFragmentOn("CartCustomDiscountAllocation", function (CartCustomDiscountAllocation) {
+          CartCustomDiscountAllocation.add("title");
+        });
       });
     });
     spreads.AppliedGiftCardFragment = document.defineFragment("AppliedGiftCardFragment", "AppliedGiftCard", function (root) {
@@ -5069,274 +6082,225 @@ var ShopifyBuy = (function () {
       root.add("id");
       root.add("lastCharacters");
     });
-    spreads.VariantWithProductFragment = document.defineFragment("VariantWithProductFragment", "ProductVariant", function (root) {
-      root.addFragment(spreads.VariantFragment);
-      root.add("product", function (product) {
-        product.add("id");
-        product.add("handle");
-      });
-    });
-    spreads.UserErrorFragment = document.defineFragment("UserErrorFragment", "UserError", function (root) {
-      root.add("field");
-      root.add("message");
-    });
-    spreads.CheckoutUserErrorFragment = document.defineFragment("CheckoutUserErrorFragment", "CheckoutUserError", function (root) {
-      root.add("field");
-      root.add("message");
-      root.add("code");
-    });
-    spreads.MailingAddressFragment = document.defineFragment("MailingAddressFragment", "MailingAddress", function (root) {
+    spreads.CartFragment = document.defineFragment("CartFragment", "Cart", function (root) {
       root.add("id");
-      root.add("address1");
-      root.add("address2");
-      root.add("city");
-      root.add("company");
-      root.add("country");
-      root.add("firstName");
-      root.add("formatted");
-      root.add("lastName");
-      root.add("latitude");
-      root.add("longitude");
-      root.add("phone");
-      root.add("province");
-      root.add("zip");
-      root.add("name");
-      root.add("countryCodeV2", {
-        alias: "countryCode"
-      });
-      root.add("provinceCode");
-    });
-    spreads.CheckoutFragment = document.defineFragment("CheckoutFragment", "Checkout", function (root) {
-      root.add("id");
-      root.add("ready");
-      root.add("requiresShipping");
-      root.add("note");
-      root.add("paymentDue", function (paymentDue) {
-        paymentDue.add("amount");
-        paymentDue.add("currencyCode");
-      });
-      root.add("paymentDue", {
-        alias: "paymentDueV2"
-      }, function (paymentDue) {
-        paymentDue.add("amount");
-        paymentDue.add("currencyCode");
-      });
-      root.add("webUrl");
-      root.add("orderStatusUrl");
-      root.add("taxExempt");
-      root.add("taxesIncluded");
-      root.add("currencyCode");
-      root.add("totalTax", function (totalTax) {
-        totalTax.add("amount");
-        totalTax.add("currencyCode");
-      });
-      root.add("totalTax", {
-        alias: "totalTaxV2"
-      }, function (totalTax) {
-        totalTax.add("amount");
-        totalTax.add("currencyCode");
-      });
-      root.add("lineItemsSubtotalPrice", function (lineItemsSubtotalPrice) {
-        lineItemsSubtotalPrice.add("amount");
-        lineItemsSubtotalPrice.add("currencyCode");
-      });
-      root.add("subtotalPrice", function (subtotalPrice) {
-        subtotalPrice.add("amount");
-        subtotalPrice.add("currencyCode");
-      });
-      root.add("subtotalPrice", {
-        alias: "subtotalPriceV2"
-      }, function (subtotalPrice) {
-        subtotalPrice.add("amount");
-        subtotalPrice.add("currencyCode");
-      });
-      root.add("totalPrice", function (totalPrice) {
-        totalPrice.add("amount");
-        totalPrice.add("currencyCode");
-      });
-      root.add("totalPrice", {
-        alias: "totalPriceV2"
-      }, function (totalPrice) {
-        totalPrice.add("amount");
-        totalPrice.add("currencyCode");
-      });
-      root.add("completedAt");
       root.add("createdAt");
       root.add("updatedAt");
-      root.add("email");
-      root.add("discountApplications", {
+      root.add("lines", {
         args: {
           first: 10
         }
-      }, function (discountApplications) {
-        discountApplications.add("pageInfo", function (pageInfo) {
+      }, function (lines) {
+        lines.add("pageInfo", function (pageInfo) {
           pageInfo.add("hasNextPage");
           pageInfo.add("hasPreviousPage");
         });
-        discountApplications.add("edges", function (edges) {
+        lines.add("edges", function (edges) {
           edges.add("node", function (node) {
-            node.addFragment(spreads.DiscountApplicationFragment);
+            node.addFragment(spreads.CartLineFragment);
+          });
+        });
+      });
+      root.add("attributes", function (attributes) {
+        attributes.add("key");
+        attributes.add("value");
+      });
+      root.add("cost", function (cost) {
+        cost.add("checkoutChargeAmount", function (checkoutChargeAmount) {
+          checkoutChargeAmount.add("amount");
+          checkoutChargeAmount.add("currencyCode");
+        });
+        cost.add("totalAmount", function (totalAmount) {
+          totalAmount.add("amount");
+          totalAmount.add("currencyCode");
+        });
+        cost.add("subtotalAmount", function (subtotalAmount) {
+          subtotalAmount.add("amount");
+          subtotalAmount.add("currencyCode");
+        });
+        cost.add("totalTaxAmount", function (totalTaxAmount) {
+          totalTaxAmount.add("amount");
+          totalTaxAmount.add("currencyCode");
+        });
+        cost.add("totalDutyAmount", function (totalDutyAmount) {
+          totalDutyAmount.add("amount");
+          totalDutyAmount.add("currencyCode");
+        });
+      });
+      root.add("checkoutUrl");
+      root.add("discountCodes", function (discountCodes) {
+        discountCodes.add("applicable");
+        discountCodes.add("code");
+      });
+      root.add("discountAllocations", function (discountAllocations) {
+        discountAllocations.add("discountedAmount", function (discountedAmount) {
+          discountedAmount.add("amount");
+          discountedAmount.add("currencyCode");
+        });
+        discountAllocations.add("discountApplication", function (discountApplication) {
+          discountApplication.add("targetType");
+          discountApplication.add("allocationMethod");
+          discountApplication.add("targetSelection");
+          discountApplication.add("value", function (value) {
+            value.addInlineFragmentOn("PricingPercentageValue", function (PricingPercentageValue) {
+              PricingPercentageValue.add("percentage");
+            });
+            value.addInlineFragmentOn("MoneyV2", function (MoneyV2) {
+              MoneyV2.add("amount");
+              MoneyV2.add("currencyCode");
+            });
+          });
+        });
+        discountAllocations.addInlineFragmentOn("CartCodeDiscountAllocation", function (CartCodeDiscountAllocation) {
+          CartCodeDiscountAllocation.add("code");
+        });
+        discountAllocations.addInlineFragmentOn("CartAutomaticDiscountAllocation", function (CartAutomaticDiscountAllocation) {
+          CartAutomaticDiscountAllocation.add("title");
+        });
+        discountAllocations.addInlineFragmentOn("CartCustomDiscountAllocation", function (CartCustomDiscountAllocation) {
+          CartCustomDiscountAllocation.add("title");
+        });
+      });
+      root.add("buyerIdentity", function (buyerIdentity) {
+        buyerIdentity.add("countryCode");
+        buyerIdentity.add("preferences", function (preferences) {
+          preferences.add("delivery", function (delivery) {
+            delivery.add("coordinates", function (coordinates) {
+              coordinates.add("latitude");
+              coordinates.add("longitude");
+              coordinates.add("countryCode");
+            });
+            delivery.add("deliveryMethod");
+            delivery.add("pickupHandle");
+          });
+          preferences.add("wallet");
+        });
+        buyerIdentity.add("email");
+        buyerIdentity.add("phone");
+        buyerIdentity.add("customer", function (customer) {
+          customer.add("email");
+        });
+        buyerIdentity.add("deliveryAddressPreferences", function (deliveryAddressPreferences) {
+          deliveryAddressPreferences.addInlineFragmentOn("MailingAddress", function (MailingAddress) {
+            MailingAddress.add("address1");
+            MailingAddress.add("address2");
+            MailingAddress.add("city");
+            MailingAddress.add("company");
+            MailingAddress.add("country");
+            MailingAddress.add("countryCodeV2");
+            MailingAddress.add("firstName");
+            MailingAddress.add("formatted");
+            MailingAddress.add("formattedArea");
+            MailingAddress.add("lastName");
+            MailingAddress.add("latitude");
+            MailingAddress.add("longitude");
+            MailingAddress.add("name");
+            MailingAddress.add("phone");
+            MailingAddress.add("province");
+            MailingAddress.add("provinceCode");
+            MailingAddress.add("zip");
+          });
+        });
+      });
+      root.add("deliveryGroups", {
+        args: {
+          first: 10
+        }
+      }, function (deliveryGroups) {
+        deliveryGroups.add("pageInfo", function (pageInfo) {
+          pageInfo.add("hasNextPage");
+          pageInfo.add("hasPreviousPage");
+        });
+        deliveryGroups.add("edges", function (edges) {
+          edges.add("node", function (node) {
+            node.add("id");
+            node.add("deliveryAddress", function (deliveryAddress) {
+              deliveryAddress.add("address2");
+              deliveryAddress.add("address1");
+              deliveryAddress.add("city");
+              deliveryAddress.add("company");
+              deliveryAddress.add("country");
+              deliveryAddress.add("countryCodeV2");
+              deliveryAddress.add("firstName");
+              deliveryAddress.add("formatted");
+              deliveryAddress.add("formattedArea");
+              deliveryAddress.add("lastName");
+              deliveryAddress.add("latitude");
+              deliveryAddress.add("longitude");
+              deliveryAddress.add("name");
+              deliveryAddress.add("phone");
+              deliveryAddress.add("province");
+              deliveryAddress.add("provinceCode");
+            });
+            node.add("deliveryOptions", function (deliveryOptions) {
+              deliveryOptions.add("code");
+              deliveryOptions.add("deliveryMethodType");
+              deliveryOptions.add("description");
+              deliveryOptions.add("estimatedCost", function (estimatedCost) {
+                estimatedCost.add("amount");
+                estimatedCost.add("currencyCode");
+              });
+              deliveryOptions.add("handle");
+              deliveryOptions.add("title");
+            });
+            node.add("selectedDeliveryOption", function (selectedDeliveryOption) {
+              selectedDeliveryOption.add("code");
+              selectedDeliveryOption.add("deliveryMethodType");
+              selectedDeliveryOption.add("description");
+              selectedDeliveryOption.add("estimatedCost", function (estimatedCost) {
+                estimatedCost.add("amount");
+                estimatedCost.add("currencyCode");
+              });
+              selectedDeliveryOption.add("handle");
+              selectedDeliveryOption.add("title");
+            });
+            node.add("cartLines", {
+              args: {
+                first: 10
+              }
+            }, function (cartLines) {
+              cartLines.add("pageInfo", function (pageInfo) {
+                pageInfo.add("hasNextPage");
+                pageInfo.add("hasPreviousPage");
+              });
+              cartLines.add("edges", function (edges) {
+                edges.add("node", function (node) {
+                  node.add("id");
+                });
+              });
+            });
           });
         });
       });
       root.add("appliedGiftCards", function (appliedGiftCards) {
         appliedGiftCards.addFragment(spreads.AppliedGiftCardFragment);
       });
-      root.add("shippingAddress", function (shippingAddress) {
-        shippingAddress.addFragment(spreads.MailingAddressFragment);
-      });
-      root.add("shippingLine", function (shippingLine) {
-        shippingLine.add("handle");
-        shippingLine.add("price", function (price) {
-          price.add("amount");
-          price.add("currencyCode");
-        });
-        shippingLine.add("price", {
-          alias: "priceV2"
-        }, function (price) {
-          price.add("amount");
-          price.add("currencyCode");
-        });
-        shippingLine.add("title");
-      });
-      root.add("customAttributes", function (customAttributes) {
-        customAttributes.add("key");
-        customAttributes.add("value");
-      });
-      root.add("order", function (order) {
-        order.add("id");
-        order.add("processedAt");
-        order.add("orderNumber");
-        order.add("subtotalPrice", function (subtotalPrice) {
-          subtotalPrice.add("amount");
-          subtotalPrice.add("currencyCode");
-        });
-        order.add("subtotalPrice", {
-          alias: "subtotalPriceV2"
-        }, function (subtotalPrice) {
-          subtotalPrice.add("amount");
-          subtotalPrice.add("currencyCode");
-        });
-        order.add("totalShippingPrice", function (totalShippingPrice) {
-          totalShippingPrice.add("amount");
-          totalShippingPrice.add("currencyCode");
-        });
-        order.add("totalShippingPrice", {
-          alias: "totalShippingPriceV2"
-        }, function (totalShippingPrice) {
-          totalShippingPrice.add("amount");
-          totalShippingPrice.add("currencyCode");
-        });
-        order.add("totalTax", function (totalTax) {
-          totalTax.add("amount");
-          totalTax.add("currencyCode");
-        });
-        order.add("totalTax", {
-          alias: "totalTaxV2"
-        }, function (totalTax) {
-          totalTax.add("amount");
-          totalTax.add("currencyCode");
-        });
-        order.add("totalPrice", function (totalPrice) {
-          totalPrice.add("amount");
-          totalPrice.add("currencyCode");
-        });
-        order.add("totalPrice", {
-          alias: "totalPriceV2"
-        }, function (totalPrice) {
-          totalPrice.add("amount");
-          totalPrice.add("currencyCode");
-        });
-        order.add("currencyCode");
-        order.add("totalRefunded", function (totalRefunded) {
-          totalRefunded.add("amount");
-          totalRefunded.add("currencyCode");
-        });
-        order.add("totalRefunded", {
-          alias: "totalRefundedV2"
-        }, function (totalRefunded) {
-          totalRefunded.add("amount");
-          totalRefunded.add("currencyCode");
-        });
-        order.add("customerUrl");
-        order.add("shippingAddress", function (shippingAddress) {
-          shippingAddress.addFragment(spreads.MailingAddressFragment);
-        });
-        order.add("lineItems", {
-          args: {
-            first: 250
-          }
-        }, function (lineItems) {
-          lineItems.add("pageInfo", function (pageInfo) {
-            pageInfo.add("hasNextPage");
-            pageInfo.add("hasPreviousPage");
-          });
-          lineItems.add("edges", function (edges) {
-            edges.add("cursor");
-            edges.add("node", function (node) {
-              node.add("title");
-              node.add("variant", function (variant) {
-                variant.addFragment(spreads.VariantWithProductFragment);
-              });
-              node.add("quantity");
-              node.add("customAttributes", function (customAttributes) {
-                customAttributes.add("key");
-                customAttributes.add("value");
-              });
-            });
-          });
-        });
-      });
-      root.add("lineItems", {
-        args: {
-          first: 250
-        }
-      }, function (lineItems) {
-        lineItems.add("pageInfo", function (pageInfo) {
-          pageInfo.add("hasNextPage");
-          pageInfo.add("hasPreviousPage");
-        });
-        lineItems.add("edges", function (edges) {
-          edges.add("cursor");
-          edges.add("node", function (node) {
-            node.add("id");
-            node.add("title");
-            node.add("variant", function (variant) {
-              variant.addFragment(spreads.VariantWithProductFragment);
-            });
-            node.add("quantity");
-            node.add("customAttributes", function (customAttributes) {
-              customAttributes.add("key");
-              customAttributes.add("value");
-            });
-            node.add("discountAllocations", function (discountAllocations) {
-              discountAllocations.add("allocatedAmount", function (allocatedAmount) {
-                allocatedAmount.add("amount");
-                allocatedAmount.add("currencyCode");
-              });
-              discountAllocations.add("discountApplication", function (discountApplication) {
-                discountApplication.addFragment(spreads.DiscountApplicationFragment);
-              });
-            });
-          });
-        });
-      });
+      root.add("note");
     });
-    document.addMutation([variables.__defaultOperation__.checkoutId, variables.__defaultOperation__.lineItems], function (root) {
-      root.add("checkoutLineItemsAdd", {
+    spreads.CartUserErrorFragment = document.defineFragment("CartUserErrorFragment", "CartUserError", function (root) {
+      root.add("field");
+      root.add("message");
+      root.add("code");
+    });
+    spreads.CartWarningFragment = document.defineFragment("CartWarningFragment", "CartWarning", function (root) {
+      root.add("code");
+      root.add("message");
+    });
+    document.addMutation("CartAttributesUpdate", [variables.CartAttributesUpdate.attributes, variables.CartAttributesUpdate.cartId], function (root) {
+      root.add("cartAttributesUpdate", {
         args: {
-          checkoutId: variables.__defaultOperation__.checkoutId,
-          lineItems: variables.__defaultOperation__.lineItems
+          attributes: variables.CartAttributesUpdate.attributes,
+          cartId: variables.CartAttributesUpdate.cartId
         }
-      }, function (checkoutLineItemsAdd) {
-        checkoutLineItemsAdd.add("userErrors", function (userErrors) {
-          userErrors.addFragment(spreads.UserErrorFragment);
+      }, function (cartAttributesUpdate) {
+        cartAttributesUpdate.add("cart", function (cart) {
+          cart.addFragment(spreads.CartFragment);
         });
-        checkoutLineItemsAdd.add("checkoutUserErrors", function (checkoutUserErrors) {
-          checkoutUserErrors.addFragment(spreads.CheckoutUserErrorFragment);
+        cartAttributesUpdate.add("userErrors", function (userErrors) {
+          userErrors.addFragment(spreads.CartUserErrorFragment);
         });
-        checkoutLineItemsAdd.add("checkout", function (checkout) {
-          checkout.addFragment(spreads.CheckoutFragment);
+        cartAttributesUpdate.add("warnings", function (warnings) {
+          warnings.addFragment(spreads.CartWarningFragment);
         });
       });
     });
@@ -5347,88 +6311,110 @@ var ShopifyBuy = (function () {
     var document = client.document();
     var spreads = {};
     var variables = {};
-    variables.__defaultOperation__ = {};
-    variables.__defaultOperation__.checkoutId = client.variable("checkoutId", "ID!");
-    variables.__defaultOperation__.lineItemIds = client.variable("lineItemIds", "[ID!]!");
-    spreads.VariantFragment = document.defineFragment("VariantFragment", "ProductVariant", function (root) {
+    variables.CartBuyerIdentityUpdate = {};
+    variables.CartBuyerIdentityUpdate.buyerIdentity = client.variable("buyerIdentity", "CartBuyerIdentityInput!");
+    variables.CartBuyerIdentityUpdate.cartId = client.variable("cartId", "ID!");
+    spreads.CartLineFragment = document.defineFragment("CartLineFragment", "CartLine", function (root) {
       root.add("id");
-      root.add("title");
-      root.add("price", function (price) {
-        price.add("amount");
-        price.add("currencyCode");
-      });
-      root.add("price", {
-        alias: "priceV2"
-      }, function (price) {
-        price.add("amount");
-        price.add("currencyCode");
-      });
-      root.add("weight");
-      root.add("availableForSale", {
-        alias: "available"
-      });
-      root.add("sku");
-      root.add("compareAtPrice", function (compareAtPrice) {
-        compareAtPrice.add("amount");
-        compareAtPrice.add("currencyCode");
-      });
-      root.add("compareAtPrice", {
-        alias: "compareAtPriceV2"
-      }, function (compareAtPrice) {
-        compareAtPrice.add("amount");
-        compareAtPrice.add("currencyCode");
-      });
-      root.add("image", function (image) {
-        image.add("id");
-        image.add("url", {
-          alias: "src"
-        });
-        image.add("altText");
-        image.add("width");
-        image.add("height");
-      });
-      root.add("selectedOptions", function (selectedOptions) {
-        selectedOptions.add("name");
-        selectedOptions.add("value");
-      });
-      root.add("unitPrice", function (unitPrice) {
-        unitPrice.add("amount");
-        unitPrice.add("currencyCode");
-      });
-      root.add("unitPriceMeasurement", function (unitPriceMeasurement) {
-        unitPriceMeasurement.add("measuredType");
-        unitPriceMeasurement.add("quantityUnit");
-        unitPriceMeasurement.add("quantityValue");
-        unitPriceMeasurement.add("referenceUnit");
-        unitPriceMeasurement.add("referenceValue");
-      });
-    });
-    spreads.DiscountApplicationFragment = document.defineFragment("DiscountApplicationFragment", "DiscountApplication", function (root) {
-      root.add("targetSelection");
-      root.add("allocationMethod");
-      root.add("targetType");
-      root.add("value", function (value) {
-        value.addInlineFragmentOn("MoneyV2", function (MoneyV2) {
-          MoneyV2.add("amount");
-          MoneyV2.add("currencyCode");
-        });
-        value.addInlineFragmentOn("PricingPercentageValue", function (PricingPercentageValue) {
-          PricingPercentageValue.add("percentage");
+      root.add("merchandise", function (merchandise) {
+        merchandise.addInlineFragmentOn("ProductVariant", function (ProductVariant) {
+          ProductVariant.add("id");
+          ProductVariant.add("title");
+          ProductVariant.add("image", function (image) {
+            image.add("id");
+            image.add("url", {
+              alias: "src"
+            });
+            image.add("altText");
+            image.add("width");
+            image.add("height");
+          });
+          ProductVariant.add("product", function (product) {
+            product.add("id");
+            product.add("handle");
+            product.add("title");
+          });
+          ProductVariant.add("weight");
+          ProductVariant.add("availableForSale", {
+            alias: "available"
+          });
+          ProductVariant.add("sku");
+          ProductVariant.add("selectedOptions", function (selectedOptions) {
+            selectedOptions.add("name");
+            selectedOptions.add("value");
+          });
+          ProductVariant.add("compareAtPrice", function (compareAtPrice) {
+            compareAtPrice.add("amount");
+            compareAtPrice.add("currencyCode");
+          });
+          ProductVariant.add("price", function (price) {
+            price.add("amount");
+            price.add("currencyCode");
+          });
+          ProductVariant.add("unitPrice", function (unitPrice) {
+            unitPrice.add("amount");
+            unitPrice.add("currencyCode");
+          });
+          ProductVariant.add("unitPriceMeasurement", function (unitPriceMeasurement) {
+            unitPriceMeasurement.add("measuredType");
+            unitPriceMeasurement.add("quantityUnit");
+            unitPriceMeasurement.add("quantityValue");
+            unitPriceMeasurement.add("referenceUnit");
+            unitPriceMeasurement.add("referenceValue");
+          });
         });
       });
-      root.addInlineFragmentOn("ManualDiscountApplication", function (ManualDiscountApplication) {
-        ManualDiscountApplication.add("title");
-        ManualDiscountApplication.add("description");
+      root.add("quantity");
+      root.add("attributes", function (attributes) {
+        attributes.add("key");
+        attributes.add("value");
       });
-      root.addInlineFragmentOn("DiscountCodeApplication", function (DiscountCodeApplication) {
-        DiscountCodeApplication.add("code");
-        DiscountCodeApplication.add("applicable");
+      root.add("cost", function (cost) {
+        cost.add("totalAmount", function (totalAmount) {
+          totalAmount.add("amount");
+          totalAmount.add("currencyCode");
+        });
+        cost.add("subtotalAmount", function (subtotalAmount) {
+          subtotalAmount.add("amount");
+          subtotalAmount.add("currencyCode");
+        });
+        cost.add("amountPerQuantity", function (amountPerQuantity) {
+          amountPerQuantity.add("amount");
+          amountPerQuantity.add("currencyCode");
+        });
+        cost.add("compareAtAmountPerQuantity", function (compareAtAmountPerQuantity) {
+          compareAtAmountPerQuantity.add("amount");
+          compareAtAmountPerQuantity.add("currencyCode");
+        });
       });
-      root.addInlineFragmentOn("ScriptDiscountApplication", function (ScriptDiscountApplication) {
-        ScriptDiscountApplication.add("title");
-      });
-      root.addInlineFragmentOn("AutomaticDiscountApplication", function (AutomaticDiscountApplication) {
-        AutomaticDiscountApplication.add("title");
+      root.add("discountAllocations", function (discountAllocations) {
+        discountAllocations.add("discountedAmount", function (discountedAmount) {
+          discountedAmount.add("amount");
+          discountedAmount.add("currencyCode");
+        });
+        discountAllocations.add("discountApplication", function (discountApplication) {
+          discountApplication.add("targetType");
+          discountApplication.add("allocationMethod");
+          discountApplication.add("targetSelection");
+          discountApplication.add("value", function (value) {
+            value.addInlineFragmentOn("PricingPercentageValue", function (PricingPercentageValue) {
+              PricingPercentageValue.add("percentage");
+            });
+            value.addInlineFragmentOn("MoneyV2", function (MoneyV2) {
+              MoneyV2.add("amount");
+              MoneyV2.add("currencyCode");
+            });
+          });
+        });
+        discountAllocations.addInlineFragmentOn("CartCodeDiscountAllocation", function (CartCodeDiscountAllocation) {
+          CartCodeDiscountAllocation.add("code");
+        });
+        discountAllocations.addInlineFragmentOn("CartAutomaticDiscountAllocation", function (CartAutomaticDiscountAllocation) {
+          CartAutomaticDiscountAllocation.add("title");
+        });
+        discountAllocations.addInlineFragmentOn("CartCustomDiscountAllocation", function (CartCustomDiscountAllocation) {
+          CartCustomDiscountAllocation.add("title");
+        });
       });
     });
     spreads.AppliedGiftCardFragment = document.defineFragment("AppliedGiftCardFragment", "AppliedGiftCard", function (root) {
@@ -5459,274 +6445,225 @@ var ShopifyBuy = (function () {
       root.add("id");
       root.add("lastCharacters");
     });
-    spreads.VariantWithProductFragment = document.defineFragment("VariantWithProductFragment", "ProductVariant", function (root) {
-      root.addFragment(spreads.VariantFragment);
-      root.add("product", function (product) {
-        product.add("id");
-        product.add("handle");
-      });
-    });
-    spreads.UserErrorFragment = document.defineFragment("UserErrorFragment", "UserError", function (root) {
-      root.add("field");
-      root.add("message");
-    });
-    spreads.CheckoutUserErrorFragment = document.defineFragment("CheckoutUserErrorFragment", "CheckoutUserError", function (root) {
-      root.add("field");
-      root.add("message");
-      root.add("code");
-    });
-    spreads.MailingAddressFragment = document.defineFragment("MailingAddressFragment", "MailingAddress", function (root) {
+    spreads.CartFragment = document.defineFragment("CartFragment", "Cart", function (root) {
       root.add("id");
-      root.add("address1");
-      root.add("address2");
-      root.add("city");
-      root.add("company");
-      root.add("country");
-      root.add("firstName");
-      root.add("formatted");
-      root.add("lastName");
-      root.add("latitude");
-      root.add("longitude");
-      root.add("phone");
-      root.add("province");
-      root.add("zip");
-      root.add("name");
-      root.add("countryCodeV2", {
-        alias: "countryCode"
-      });
-      root.add("provinceCode");
-    });
-    spreads.CheckoutFragment = document.defineFragment("CheckoutFragment", "Checkout", function (root) {
-      root.add("id");
-      root.add("ready");
-      root.add("requiresShipping");
-      root.add("note");
-      root.add("paymentDue", function (paymentDue) {
-        paymentDue.add("amount");
-        paymentDue.add("currencyCode");
-      });
-      root.add("paymentDue", {
-        alias: "paymentDueV2"
-      }, function (paymentDue) {
-        paymentDue.add("amount");
-        paymentDue.add("currencyCode");
-      });
-      root.add("webUrl");
-      root.add("orderStatusUrl");
-      root.add("taxExempt");
-      root.add("taxesIncluded");
-      root.add("currencyCode");
-      root.add("totalTax", function (totalTax) {
-        totalTax.add("amount");
-        totalTax.add("currencyCode");
-      });
-      root.add("totalTax", {
-        alias: "totalTaxV2"
-      }, function (totalTax) {
-        totalTax.add("amount");
-        totalTax.add("currencyCode");
-      });
-      root.add("lineItemsSubtotalPrice", function (lineItemsSubtotalPrice) {
-        lineItemsSubtotalPrice.add("amount");
-        lineItemsSubtotalPrice.add("currencyCode");
-      });
-      root.add("subtotalPrice", function (subtotalPrice) {
-        subtotalPrice.add("amount");
-        subtotalPrice.add("currencyCode");
-      });
-      root.add("subtotalPrice", {
-        alias: "subtotalPriceV2"
-      }, function (subtotalPrice) {
-        subtotalPrice.add("amount");
-        subtotalPrice.add("currencyCode");
-      });
-      root.add("totalPrice", function (totalPrice) {
-        totalPrice.add("amount");
-        totalPrice.add("currencyCode");
-      });
-      root.add("totalPrice", {
-        alias: "totalPriceV2"
-      }, function (totalPrice) {
-        totalPrice.add("amount");
-        totalPrice.add("currencyCode");
-      });
-      root.add("completedAt");
       root.add("createdAt");
       root.add("updatedAt");
-      root.add("email");
-      root.add("discountApplications", {
+      root.add("lines", {
         args: {
           first: 10
         }
-      }, function (discountApplications) {
-        discountApplications.add("pageInfo", function (pageInfo) {
+      }, function (lines) {
+        lines.add("pageInfo", function (pageInfo) {
           pageInfo.add("hasNextPage");
           pageInfo.add("hasPreviousPage");
         });
-        discountApplications.add("edges", function (edges) {
+        lines.add("edges", function (edges) {
           edges.add("node", function (node) {
-            node.addFragment(spreads.DiscountApplicationFragment);
+            node.addFragment(spreads.CartLineFragment);
+          });
+        });
+      });
+      root.add("attributes", function (attributes) {
+        attributes.add("key");
+        attributes.add("value");
+      });
+      root.add("cost", function (cost) {
+        cost.add("checkoutChargeAmount", function (checkoutChargeAmount) {
+          checkoutChargeAmount.add("amount");
+          checkoutChargeAmount.add("currencyCode");
+        });
+        cost.add("totalAmount", function (totalAmount) {
+          totalAmount.add("amount");
+          totalAmount.add("currencyCode");
+        });
+        cost.add("subtotalAmount", function (subtotalAmount) {
+          subtotalAmount.add("amount");
+          subtotalAmount.add("currencyCode");
+        });
+        cost.add("totalTaxAmount", function (totalTaxAmount) {
+          totalTaxAmount.add("amount");
+          totalTaxAmount.add("currencyCode");
+        });
+        cost.add("totalDutyAmount", function (totalDutyAmount) {
+          totalDutyAmount.add("amount");
+          totalDutyAmount.add("currencyCode");
+        });
+      });
+      root.add("checkoutUrl");
+      root.add("discountCodes", function (discountCodes) {
+        discountCodes.add("applicable");
+        discountCodes.add("code");
+      });
+      root.add("discountAllocations", function (discountAllocations) {
+        discountAllocations.add("discountedAmount", function (discountedAmount) {
+          discountedAmount.add("amount");
+          discountedAmount.add("currencyCode");
+        });
+        discountAllocations.add("discountApplication", function (discountApplication) {
+          discountApplication.add("targetType");
+          discountApplication.add("allocationMethod");
+          discountApplication.add("targetSelection");
+          discountApplication.add("value", function (value) {
+            value.addInlineFragmentOn("PricingPercentageValue", function (PricingPercentageValue) {
+              PricingPercentageValue.add("percentage");
+            });
+            value.addInlineFragmentOn("MoneyV2", function (MoneyV2) {
+              MoneyV2.add("amount");
+              MoneyV2.add("currencyCode");
+            });
+          });
+        });
+        discountAllocations.addInlineFragmentOn("CartCodeDiscountAllocation", function (CartCodeDiscountAllocation) {
+          CartCodeDiscountAllocation.add("code");
+        });
+        discountAllocations.addInlineFragmentOn("CartAutomaticDiscountAllocation", function (CartAutomaticDiscountAllocation) {
+          CartAutomaticDiscountAllocation.add("title");
+        });
+        discountAllocations.addInlineFragmentOn("CartCustomDiscountAllocation", function (CartCustomDiscountAllocation) {
+          CartCustomDiscountAllocation.add("title");
+        });
+      });
+      root.add("buyerIdentity", function (buyerIdentity) {
+        buyerIdentity.add("countryCode");
+        buyerIdentity.add("preferences", function (preferences) {
+          preferences.add("delivery", function (delivery) {
+            delivery.add("coordinates", function (coordinates) {
+              coordinates.add("latitude");
+              coordinates.add("longitude");
+              coordinates.add("countryCode");
+            });
+            delivery.add("deliveryMethod");
+            delivery.add("pickupHandle");
+          });
+          preferences.add("wallet");
+        });
+        buyerIdentity.add("email");
+        buyerIdentity.add("phone");
+        buyerIdentity.add("customer", function (customer) {
+          customer.add("email");
+        });
+        buyerIdentity.add("deliveryAddressPreferences", function (deliveryAddressPreferences) {
+          deliveryAddressPreferences.addInlineFragmentOn("MailingAddress", function (MailingAddress) {
+            MailingAddress.add("address1");
+            MailingAddress.add("address2");
+            MailingAddress.add("city");
+            MailingAddress.add("company");
+            MailingAddress.add("country");
+            MailingAddress.add("countryCodeV2");
+            MailingAddress.add("firstName");
+            MailingAddress.add("formatted");
+            MailingAddress.add("formattedArea");
+            MailingAddress.add("lastName");
+            MailingAddress.add("latitude");
+            MailingAddress.add("longitude");
+            MailingAddress.add("name");
+            MailingAddress.add("phone");
+            MailingAddress.add("province");
+            MailingAddress.add("provinceCode");
+            MailingAddress.add("zip");
+          });
+        });
+      });
+      root.add("deliveryGroups", {
+        args: {
+          first: 10
+        }
+      }, function (deliveryGroups) {
+        deliveryGroups.add("pageInfo", function (pageInfo) {
+          pageInfo.add("hasNextPage");
+          pageInfo.add("hasPreviousPage");
+        });
+        deliveryGroups.add("edges", function (edges) {
+          edges.add("node", function (node) {
+            node.add("id");
+            node.add("deliveryAddress", function (deliveryAddress) {
+              deliveryAddress.add("address2");
+              deliveryAddress.add("address1");
+              deliveryAddress.add("city");
+              deliveryAddress.add("company");
+              deliveryAddress.add("country");
+              deliveryAddress.add("countryCodeV2");
+              deliveryAddress.add("firstName");
+              deliveryAddress.add("formatted");
+              deliveryAddress.add("formattedArea");
+              deliveryAddress.add("lastName");
+              deliveryAddress.add("latitude");
+              deliveryAddress.add("longitude");
+              deliveryAddress.add("name");
+              deliveryAddress.add("phone");
+              deliveryAddress.add("province");
+              deliveryAddress.add("provinceCode");
+            });
+            node.add("deliveryOptions", function (deliveryOptions) {
+              deliveryOptions.add("code");
+              deliveryOptions.add("deliveryMethodType");
+              deliveryOptions.add("description");
+              deliveryOptions.add("estimatedCost", function (estimatedCost) {
+                estimatedCost.add("amount");
+                estimatedCost.add("currencyCode");
+              });
+              deliveryOptions.add("handle");
+              deliveryOptions.add("title");
+            });
+            node.add("selectedDeliveryOption", function (selectedDeliveryOption) {
+              selectedDeliveryOption.add("code");
+              selectedDeliveryOption.add("deliveryMethodType");
+              selectedDeliveryOption.add("description");
+              selectedDeliveryOption.add("estimatedCost", function (estimatedCost) {
+                estimatedCost.add("amount");
+                estimatedCost.add("currencyCode");
+              });
+              selectedDeliveryOption.add("handle");
+              selectedDeliveryOption.add("title");
+            });
+            node.add("cartLines", {
+              args: {
+                first: 10
+              }
+            }, function (cartLines) {
+              cartLines.add("pageInfo", function (pageInfo) {
+                pageInfo.add("hasNextPage");
+                pageInfo.add("hasPreviousPage");
+              });
+              cartLines.add("edges", function (edges) {
+                edges.add("node", function (node) {
+                  node.add("id");
+                });
+              });
+            });
           });
         });
       });
       root.add("appliedGiftCards", function (appliedGiftCards) {
         appliedGiftCards.addFragment(spreads.AppliedGiftCardFragment);
       });
-      root.add("shippingAddress", function (shippingAddress) {
-        shippingAddress.addFragment(spreads.MailingAddressFragment);
-      });
-      root.add("shippingLine", function (shippingLine) {
-        shippingLine.add("handle");
-        shippingLine.add("price", function (price) {
-          price.add("amount");
-          price.add("currencyCode");
-        });
-        shippingLine.add("price", {
-          alias: "priceV2"
-        }, function (price) {
-          price.add("amount");
-          price.add("currencyCode");
-        });
-        shippingLine.add("title");
-      });
-      root.add("customAttributes", function (customAttributes) {
-        customAttributes.add("key");
-        customAttributes.add("value");
-      });
-      root.add("order", function (order) {
-        order.add("id");
-        order.add("processedAt");
-        order.add("orderNumber");
-        order.add("subtotalPrice", function (subtotalPrice) {
-          subtotalPrice.add("amount");
-          subtotalPrice.add("currencyCode");
-        });
-        order.add("subtotalPrice", {
-          alias: "subtotalPriceV2"
-        }, function (subtotalPrice) {
-          subtotalPrice.add("amount");
-          subtotalPrice.add("currencyCode");
-        });
-        order.add("totalShippingPrice", function (totalShippingPrice) {
-          totalShippingPrice.add("amount");
-          totalShippingPrice.add("currencyCode");
-        });
-        order.add("totalShippingPrice", {
-          alias: "totalShippingPriceV2"
-        }, function (totalShippingPrice) {
-          totalShippingPrice.add("amount");
-          totalShippingPrice.add("currencyCode");
-        });
-        order.add("totalTax", function (totalTax) {
-          totalTax.add("amount");
-          totalTax.add("currencyCode");
-        });
-        order.add("totalTax", {
-          alias: "totalTaxV2"
-        }, function (totalTax) {
-          totalTax.add("amount");
-          totalTax.add("currencyCode");
-        });
-        order.add("totalPrice", function (totalPrice) {
-          totalPrice.add("amount");
-          totalPrice.add("currencyCode");
-        });
-        order.add("totalPrice", {
-          alias: "totalPriceV2"
-        }, function (totalPrice) {
-          totalPrice.add("amount");
-          totalPrice.add("currencyCode");
-        });
-        order.add("currencyCode");
-        order.add("totalRefunded", function (totalRefunded) {
-          totalRefunded.add("amount");
-          totalRefunded.add("currencyCode");
-        });
-        order.add("totalRefunded", {
-          alias: "totalRefundedV2"
-        }, function (totalRefunded) {
-          totalRefunded.add("amount");
-          totalRefunded.add("currencyCode");
-        });
-        order.add("customerUrl");
-        order.add("shippingAddress", function (shippingAddress) {
-          shippingAddress.addFragment(spreads.MailingAddressFragment);
-        });
-        order.add("lineItems", {
-          args: {
-            first: 250
-          }
-        }, function (lineItems) {
-          lineItems.add("pageInfo", function (pageInfo) {
-            pageInfo.add("hasNextPage");
-            pageInfo.add("hasPreviousPage");
-          });
-          lineItems.add("edges", function (edges) {
-            edges.add("cursor");
-            edges.add("node", function (node) {
-              node.add("title");
-              node.add("variant", function (variant) {
-                variant.addFragment(spreads.VariantWithProductFragment);
-              });
-              node.add("quantity");
-              node.add("customAttributes", function (customAttributes) {
-                customAttributes.add("key");
-                customAttributes.add("value");
-              });
-            });
-          });
-        });
-      });
-      root.add("lineItems", {
-        args: {
-          first: 250
-        }
-      }, function (lineItems) {
-        lineItems.add("pageInfo", function (pageInfo) {
-          pageInfo.add("hasNextPage");
-          pageInfo.add("hasPreviousPage");
-        });
-        lineItems.add("edges", function (edges) {
-          edges.add("cursor");
-          edges.add("node", function (node) {
-            node.add("id");
-            node.add("title");
-            node.add("variant", function (variant) {
-              variant.addFragment(spreads.VariantWithProductFragment);
-            });
-            node.add("quantity");
-            node.add("customAttributes", function (customAttributes) {
-              customAttributes.add("key");
-              customAttributes.add("value");
-            });
-            node.add("discountAllocations", function (discountAllocations) {
-              discountAllocations.add("allocatedAmount", function (allocatedAmount) {
-                allocatedAmount.add("amount");
-                allocatedAmount.add("currencyCode");
-              });
-              discountAllocations.add("discountApplication", function (discountApplication) {
-                discountApplication.addFragment(spreads.DiscountApplicationFragment);
-              });
-            });
-          });
-        });
-      });
+      root.add("note");
     });
-    document.addMutation([variables.__defaultOperation__.checkoutId, variables.__defaultOperation__.lineItemIds], function (root) {
-      root.add("checkoutLineItemsRemove", {
+    spreads.CartUserErrorFragment = document.defineFragment("CartUserErrorFragment", "CartUserError", function (root) {
+      root.add("field");
+      root.add("message");
+      root.add("code");
+    });
+    spreads.CartWarningFragment = document.defineFragment("CartWarningFragment", "CartWarning", function (root) {
+      root.add("code");
+      root.add("message");
+    });
+    document.addMutation("CartBuyerIdentityUpdate", [variables.CartBuyerIdentityUpdate.buyerIdentity, variables.CartBuyerIdentityUpdate.cartId], function (root) {
+      root.add("cartBuyerIdentityUpdate", {
         args: {
-          checkoutId: variables.__defaultOperation__.checkoutId,
-          lineItemIds: variables.__defaultOperation__.lineItemIds
+          buyerIdentity: variables.CartBuyerIdentityUpdate.buyerIdentity,
+          cartId: variables.CartBuyerIdentityUpdate.cartId
         }
-      }, function (checkoutLineItemsRemove) {
-        checkoutLineItemsRemove.add("userErrors", function (userErrors) {
-          userErrors.addFragment(spreads.UserErrorFragment);
+      }, function (cartBuyerIdentityUpdate) {
+        cartBuyerIdentityUpdate.add("cart", function (cart) {
+          cart.addFragment(spreads.CartFragment);
         });
-        checkoutLineItemsRemove.add("checkoutUserErrors", function (checkoutUserErrors) {
-          checkoutUserErrors.addFragment(spreads.CheckoutUserErrorFragment);
+        cartBuyerIdentityUpdate.add("userErrors", function (userErrors) {
+          userErrors.addFragment(spreads.CartUserErrorFragment);
         });
-        checkoutLineItemsRemove.add("checkout", function (checkout) {
-          checkout.addFragment(spreads.CheckoutFragment);
+        cartBuyerIdentityUpdate.add("warnings", function (warnings) {
+          warnings.addFragment(spreads.CartWarningFragment);
         });
       });
     });
@@ -5737,88 +6674,110 @@ var ShopifyBuy = (function () {
     var document = client.document();
     var spreads = {};
     var variables = {};
-    variables.__defaultOperation__ = {};
-    variables.__defaultOperation__.checkoutId = client.variable("checkoutId", "ID!");
-    variables.__defaultOperation__.lineItems = client.variable("lineItems", "[CheckoutLineItemInput!]!");
-    spreads.VariantFragment = document.defineFragment("VariantFragment", "ProductVariant", function (root) {
+    variables.CartDiscountCodesUpdate = {};
+    variables.CartDiscountCodesUpdate.cartId = client.variable("cartId", "ID!");
+    variables.CartDiscountCodesUpdate.discountCodes = client.variable("discountCodes", "[String!]!");
+    spreads.CartLineFragment = document.defineFragment("CartLineFragment", "CartLine", function (root) {
       root.add("id");
-      root.add("title");
-      root.add("price", function (price) {
-        price.add("amount");
-        price.add("currencyCode");
-      });
-      root.add("price", {
-        alias: "priceV2"
-      }, function (price) {
-        price.add("amount");
-        price.add("currencyCode");
-      });
-      root.add("weight");
-      root.add("availableForSale", {
-        alias: "available"
-      });
-      root.add("sku");
-      root.add("compareAtPrice", function (compareAtPrice) {
-        compareAtPrice.add("amount");
-        compareAtPrice.add("currencyCode");
-      });
-      root.add("compareAtPrice", {
-        alias: "compareAtPriceV2"
-      }, function (compareAtPrice) {
-        compareAtPrice.add("amount");
-        compareAtPrice.add("currencyCode");
-      });
-      root.add("image", function (image) {
-        image.add("id");
-        image.add("url", {
-          alias: "src"
-        });
-        image.add("altText");
-        image.add("width");
-        image.add("height");
-      });
-      root.add("selectedOptions", function (selectedOptions) {
-        selectedOptions.add("name");
-        selectedOptions.add("value");
-      });
-      root.add("unitPrice", function (unitPrice) {
-        unitPrice.add("amount");
-        unitPrice.add("currencyCode");
-      });
-      root.add("unitPriceMeasurement", function (unitPriceMeasurement) {
-        unitPriceMeasurement.add("measuredType");
-        unitPriceMeasurement.add("quantityUnit");
-        unitPriceMeasurement.add("quantityValue");
-        unitPriceMeasurement.add("referenceUnit");
-        unitPriceMeasurement.add("referenceValue");
-      });
-    });
-    spreads.DiscountApplicationFragment = document.defineFragment("DiscountApplicationFragment", "DiscountApplication", function (root) {
-      root.add("targetSelection");
-      root.add("allocationMethod");
-      root.add("targetType");
-      root.add("value", function (value) {
-        value.addInlineFragmentOn("MoneyV2", function (MoneyV2) {
-          MoneyV2.add("amount");
-          MoneyV2.add("currencyCode");
-        });
-        value.addInlineFragmentOn("PricingPercentageValue", function (PricingPercentageValue) {
-          PricingPercentageValue.add("percentage");
+      root.add("merchandise", function (merchandise) {
+        merchandise.addInlineFragmentOn("ProductVariant", function (ProductVariant) {
+          ProductVariant.add("id");
+          ProductVariant.add("title");
+          ProductVariant.add("image", function (image) {
+            image.add("id");
+            image.add("url", {
+              alias: "src"
+            });
+            image.add("altText");
+            image.add("width");
+            image.add("height");
+          });
+          ProductVariant.add("product", function (product) {
+            product.add("id");
+            product.add("handle");
+            product.add("title");
+          });
+          ProductVariant.add("weight");
+          ProductVariant.add("availableForSale", {
+            alias: "available"
+          });
+          ProductVariant.add("sku");
+          ProductVariant.add("selectedOptions", function (selectedOptions) {
+            selectedOptions.add("name");
+            selectedOptions.add("value");
+          });
+          ProductVariant.add("compareAtPrice", function (compareAtPrice) {
+            compareAtPrice.add("amount");
+            compareAtPrice.add("currencyCode");
+          });
+          ProductVariant.add("price", function (price) {
+            price.add("amount");
+            price.add("currencyCode");
+          });
+          ProductVariant.add("unitPrice", function (unitPrice) {
+            unitPrice.add("amount");
+            unitPrice.add("currencyCode");
+          });
+          ProductVariant.add("unitPriceMeasurement", function (unitPriceMeasurement) {
+            unitPriceMeasurement.add("measuredType");
+            unitPriceMeasurement.add("quantityUnit");
+            unitPriceMeasurement.add("quantityValue");
+            unitPriceMeasurement.add("referenceUnit");
+            unitPriceMeasurement.add("referenceValue");
+          });
         });
       });
-      root.addInlineFragmentOn("ManualDiscountApplication", function (ManualDiscountApplication) {
-        ManualDiscountApplication.add("title");
-        ManualDiscountApplication.add("description");
+      root.add("quantity");
+      root.add("attributes", function (attributes) {
+        attributes.add("key");
+        attributes.add("value");
       });
-      root.addInlineFragmentOn("DiscountCodeApplication", function (DiscountCodeApplication) {
-        DiscountCodeApplication.add("code");
-        DiscountCodeApplication.add("applicable");
+      root.add("cost", function (cost) {
+        cost.add("totalAmount", function (totalAmount) {
+          totalAmount.add("amount");
+          totalAmount.add("currencyCode");
+        });
+        cost.add("subtotalAmount", function (subtotalAmount) {
+          subtotalAmount.add("amount");
+          subtotalAmount.add("currencyCode");
+        });
+        cost.add("amountPerQuantity", function (amountPerQuantity) {
+          amountPerQuantity.add("amount");
+          amountPerQuantity.add("currencyCode");
+        });
+        cost.add("compareAtAmountPerQuantity", function (compareAtAmountPerQuantity) {
+          compareAtAmountPerQuantity.add("amount");
+          compareAtAmountPerQuantity.add("currencyCode");
+        });
       });
-      root.addInlineFragmentOn("ScriptDiscountApplication", function (ScriptDiscountApplication) {
-        ScriptDiscountApplication.add("title");
-      });
-      root.addInlineFragmentOn("AutomaticDiscountApplication", function (AutomaticDiscountApplication) {
-        AutomaticDiscountApplication.add("title");
+      root.add("discountAllocations", function (discountAllocations) {
+        discountAllocations.add("discountedAmount", function (discountedAmount) {
+          discountedAmount.add("amount");
+          discountedAmount.add("currencyCode");
+        });
+        discountAllocations.add("discountApplication", function (discountApplication) {
+          discountApplication.add("targetType");
+          discountApplication.add("allocationMethod");
+          discountApplication.add("targetSelection");
+          discountApplication.add("value", function (value) {
+            value.addInlineFragmentOn("PricingPercentageValue", function (PricingPercentageValue) {
+              PricingPercentageValue.add("percentage");
+            });
+            value.addInlineFragmentOn("MoneyV2", function (MoneyV2) {
+              MoneyV2.add("amount");
+              MoneyV2.add("currencyCode");
+            });
+          });
+        });
+        discountAllocations.addInlineFragmentOn("CartCodeDiscountAllocation", function (CartCodeDiscountAllocation) {
+          CartCodeDiscountAllocation.add("code");
+        });
+        discountAllocations.addInlineFragmentOn("CartAutomaticDiscountAllocation", function (CartAutomaticDiscountAllocation) {
+          CartAutomaticDiscountAllocation.add("title");
+        });
+        discountAllocations.addInlineFragmentOn("CartCustomDiscountAllocation", function (CartCustomDiscountAllocation) {
+          CartCustomDiscountAllocation.add("title");
+        });
       });
     });
     spreads.AppliedGiftCardFragment = document.defineFragment("AppliedGiftCardFragment", "AppliedGiftCard", function (root) {
@@ -5849,267 +6808,225 @@ var ShopifyBuy = (function () {
       root.add("id");
       root.add("lastCharacters");
     });
-    spreads.VariantWithProductFragment = document.defineFragment("VariantWithProductFragment", "ProductVariant", function (root) {
-      root.addFragment(spreads.VariantFragment);
-      root.add("product", function (product) {
-        product.add("id");
-        product.add("handle");
-      });
-    });
-    spreads.CheckoutUserErrorFragment = document.defineFragment("CheckoutUserErrorFragment", "CheckoutUserError", function (root) {
-      root.add("field");
-      root.add("message");
-      root.add("code");
-    });
-    spreads.MailingAddressFragment = document.defineFragment("MailingAddressFragment", "MailingAddress", function (root) {
+    spreads.CartFragment = document.defineFragment("CartFragment", "Cart", function (root) {
       root.add("id");
-      root.add("address1");
-      root.add("address2");
-      root.add("city");
-      root.add("company");
-      root.add("country");
-      root.add("firstName");
-      root.add("formatted");
-      root.add("lastName");
-      root.add("latitude");
-      root.add("longitude");
-      root.add("phone");
-      root.add("province");
-      root.add("zip");
-      root.add("name");
-      root.add("countryCodeV2", {
-        alias: "countryCode"
-      });
-      root.add("provinceCode");
-    });
-    spreads.CheckoutFragment = document.defineFragment("CheckoutFragment", "Checkout", function (root) {
-      root.add("id");
-      root.add("ready");
-      root.add("requiresShipping");
-      root.add("note");
-      root.add("paymentDue", function (paymentDue) {
-        paymentDue.add("amount");
-        paymentDue.add("currencyCode");
-      });
-      root.add("paymentDue", {
-        alias: "paymentDueV2"
-      }, function (paymentDue) {
-        paymentDue.add("amount");
-        paymentDue.add("currencyCode");
-      });
-      root.add("webUrl");
-      root.add("orderStatusUrl");
-      root.add("taxExempt");
-      root.add("taxesIncluded");
-      root.add("currencyCode");
-      root.add("totalTax", function (totalTax) {
-        totalTax.add("amount");
-        totalTax.add("currencyCode");
-      });
-      root.add("totalTax", {
-        alias: "totalTaxV2"
-      }, function (totalTax) {
-        totalTax.add("amount");
-        totalTax.add("currencyCode");
-      });
-      root.add("lineItemsSubtotalPrice", function (lineItemsSubtotalPrice) {
-        lineItemsSubtotalPrice.add("amount");
-        lineItemsSubtotalPrice.add("currencyCode");
-      });
-      root.add("subtotalPrice", function (subtotalPrice) {
-        subtotalPrice.add("amount");
-        subtotalPrice.add("currencyCode");
-      });
-      root.add("subtotalPrice", {
-        alias: "subtotalPriceV2"
-      }, function (subtotalPrice) {
-        subtotalPrice.add("amount");
-        subtotalPrice.add("currencyCode");
-      });
-      root.add("totalPrice", function (totalPrice) {
-        totalPrice.add("amount");
-        totalPrice.add("currencyCode");
-      });
-      root.add("totalPrice", {
-        alias: "totalPriceV2"
-      }, function (totalPrice) {
-        totalPrice.add("amount");
-        totalPrice.add("currencyCode");
-      });
-      root.add("completedAt");
       root.add("createdAt");
       root.add("updatedAt");
-      root.add("email");
-      root.add("discountApplications", {
+      root.add("lines", {
         args: {
           first: 10
         }
-      }, function (discountApplications) {
-        discountApplications.add("pageInfo", function (pageInfo) {
+      }, function (lines) {
+        lines.add("pageInfo", function (pageInfo) {
           pageInfo.add("hasNextPage");
           pageInfo.add("hasPreviousPage");
         });
-        discountApplications.add("edges", function (edges) {
+        lines.add("edges", function (edges) {
           edges.add("node", function (node) {
-            node.addFragment(spreads.DiscountApplicationFragment);
+            node.addFragment(spreads.CartLineFragment);
+          });
+        });
+      });
+      root.add("attributes", function (attributes) {
+        attributes.add("key");
+        attributes.add("value");
+      });
+      root.add("cost", function (cost) {
+        cost.add("checkoutChargeAmount", function (checkoutChargeAmount) {
+          checkoutChargeAmount.add("amount");
+          checkoutChargeAmount.add("currencyCode");
+        });
+        cost.add("totalAmount", function (totalAmount) {
+          totalAmount.add("amount");
+          totalAmount.add("currencyCode");
+        });
+        cost.add("subtotalAmount", function (subtotalAmount) {
+          subtotalAmount.add("amount");
+          subtotalAmount.add("currencyCode");
+        });
+        cost.add("totalTaxAmount", function (totalTaxAmount) {
+          totalTaxAmount.add("amount");
+          totalTaxAmount.add("currencyCode");
+        });
+        cost.add("totalDutyAmount", function (totalDutyAmount) {
+          totalDutyAmount.add("amount");
+          totalDutyAmount.add("currencyCode");
+        });
+      });
+      root.add("checkoutUrl");
+      root.add("discountCodes", function (discountCodes) {
+        discountCodes.add("applicable");
+        discountCodes.add("code");
+      });
+      root.add("discountAllocations", function (discountAllocations) {
+        discountAllocations.add("discountedAmount", function (discountedAmount) {
+          discountedAmount.add("amount");
+          discountedAmount.add("currencyCode");
+        });
+        discountAllocations.add("discountApplication", function (discountApplication) {
+          discountApplication.add("targetType");
+          discountApplication.add("allocationMethod");
+          discountApplication.add("targetSelection");
+          discountApplication.add("value", function (value) {
+            value.addInlineFragmentOn("PricingPercentageValue", function (PricingPercentageValue) {
+              PricingPercentageValue.add("percentage");
+            });
+            value.addInlineFragmentOn("MoneyV2", function (MoneyV2) {
+              MoneyV2.add("amount");
+              MoneyV2.add("currencyCode");
+            });
+          });
+        });
+        discountAllocations.addInlineFragmentOn("CartCodeDiscountAllocation", function (CartCodeDiscountAllocation) {
+          CartCodeDiscountAllocation.add("code");
+        });
+        discountAllocations.addInlineFragmentOn("CartAutomaticDiscountAllocation", function (CartAutomaticDiscountAllocation) {
+          CartAutomaticDiscountAllocation.add("title");
+        });
+        discountAllocations.addInlineFragmentOn("CartCustomDiscountAllocation", function (CartCustomDiscountAllocation) {
+          CartCustomDiscountAllocation.add("title");
+        });
+      });
+      root.add("buyerIdentity", function (buyerIdentity) {
+        buyerIdentity.add("countryCode");
+        buyerIdentity.add("preferences", function (preferences) {
+          preferences.add("delivery", function (delivery) {
+            delivery.add("coordinates", function (coordinates) {
+              coordinates.add("latitude");
+              coordinates.add("longitude");
+              coordinates.add("countryCode");
+            });
+            delivery.add("deliveryMethod");
+            delivery.add("pickupHandle");
+          });
+          preferences.add("wallet");
+        });
+        buyerIdentity.add("email");
+        buyerIdentity.add("phone");
+        buyerIdentity.add("customer", function (customer) {
+          customer.add("email");
+        });
+        buyerIdentity.add("deliveryAddressPreferences", function (deliveryAddressPreferences) {
+          deliveryAddressPreferences.addInlineFragmentOn("MailingAddress", function (MailingAddress) {
+            MailingAddress.add("address1");
+            MailingAddress.add("address2");
+            MailingAddress.add("city");
+            MailingAddress.add("company");
+            MailingAddress.add("country");
+            MailingAddress.add("countryCodeV2");
+            MailingAddress.add("firstName");
+            MailingAddress.add("formatted");
+            MailingAddress.add("formattedArea");
+            MailingAddress.add("lastName");
+            MailingAddress.add("latitude");
+            MailingAddress.add("longitude");
+            MailingAddress.add("name");
+            MailingAddress.add("phone");
+            MailingAddress.add("province");
+            MailingAddress.add("provinceCode");
+            MailingAddress.add("zip");
+          });
+        });
+      });
+      root.add("deliveryGroups", {
+        args: {
+          first: 10
+        }
+      }, function (deliveryGroups) {
+        deliveryGroups.add("pageInfo", function (pageInfo) {
+          pageInfo.add("hasNextPage");
+          pageInfo.add("hasPreviousPage");
+        });
+        deliveryGroups.add("edges", function (edges) {
+          edges.add("node", function (node) {
+            node.add("id");
+            node.add("deliveryAddress", function (deliveryAddress) {
+              deliveryAddress.add("address2");
+              deliveryAddress.add("address1");
+              deliveryAddress.add("city");
+              deliveryAddress.add("company");
+              deliveryAddress.add("country");
+              deliveryAddress.add("countryCodeV2");
+              deliveryAddress.add("firstName");
+              deliveryAddress.add("formatted");
+              deliveryAddress.add("formattedArea");
+              deliveryAddress.add("lastName");
+              deliveryAddress.add("latitude");
+              deliveryAddress.add("longitude");
+              deliveryAddress.add("name");
+              deliveryAddress.add("phone");
+              deliveryAddress.add("province");
+              deliveryAddress.add("provinceCode");
+            });
+            node.add("deliveryOptions", function (deliveryOptions) {
+              deliveryOptions.add("code");
+              deliveryOptions.add("deliveryMethodType");
+              deliveryOptions.add("description");
+              deliveryOptions.add("estimatedCost", function (estimatedCost) {
+                estimatedCost.add("amount");
+                estimatedCost.add("currencyCode");
+              });
+              deliveryOptions.add("handle");
+              deliveryOptions.add("title");
+            });
+            node.add("selectedDeliveryOption", function (selectedDeliveryOption) {
+              selectedDeliveryOption.add("code");
+              selectedDeliveryOption.add("deliveryMethodType");
+              selectedDeliveryOption.add("description");
+              selectedDeliveryOption.add("estimatedCost", function (estimatedCost) {
+                estimatedCost.add("amount");
+                estimatedCost.add("currencyCode");
+              });
+              selectedDeliveryOption.add("handle");
+              selectedDeliveryOption.add("title");
+            });
+            node.add("cartLines", {
+              args: {
+                first: 10
+              }
+            }, function (cartLines) {
+              cartLines.add("pageInfo", function (pageInfo) {
+                pageInfo.add("hasNextPage");
+                pageInfo.add("hasPreviousPage");
+              });
+              cartLines.add("edges", function (edges) {
+                edges.add("node", function (node) {
+                  node.add("id");
+                });
+              });
+            });
           });
         });
       });
       root.add("appliedGiftCards", function (appliedGiftCards) {
         appliedGiftCards.addFragment(spreads.AppliedGiftCardFragment);
       });
-      root.add("shippingAddress", function (shippingAddress) {
-        shippingAddress.addFragment(spreads.MailingAddressFragment);
-      });
-      root.add("shippingLine", function (shippingLine) {
-        shippingLine.add("handle");
-        shippingLine.add("price", function (price) {
-          price.add("amount");
-          price.add("currencyCode");
-        });
-        shippingLine.add("price", {
-          alias: "priceV2"
-        }, function (price) {
-          price.add("amount");
-          price.add("currencyCode");
-        });
-        shippingLine.add("title");
-      });
-      root.add("customAttributes", function (customAttributes) {
-        customAttributes.add("key");
-        customAttributes.add("value");
-      });
-      root.add("order", function (order) {
-        order.add("id");
-        order.add("processedAt");
-        order.add("orderNumber");
-        order.add("subtotalPrice", function (subtotalPrice) {
-          subtotalPrice.add("amount");
-          subtotalPrice.add("currencyCode");
-        });
-        order.add("subtotalPrice", {
-          alias: "subtotalPriceV2"
-        }, function (subtotalPrice) {
-          subtotalPrice.add("amount");
-          subtotalPrice.add("currencyCode");
-        });
-        order.add("totalShippingPrice", function (totalShippingPrice) {
-          totalShippingPrice.add("amount");
-          totalShippingPrice.add("currencyCode");
-        });
-        order.add("totalShippingPrice", {
-          alias: "totalShippingPriceV2"
-        }, function (totalShippingPrice) {
-          totalShippingPrice.add("amount");
-          totalShippingPrice.add("currencyCode");
-        });
-        order.add("totalTax", function (totalTax) {
-          totalTax.add("amount");
-          totalTax.add("currencyCode");
-        });
-        order.add("totalTax", {
-          alias: "totalTaxV2"
-        }, function (totalTax) {
-          totalTax.add("amount");
-          totalTax.add("currencyCode");
-        });
-        order.add("totalPrice", function (totalPrice) {
-          totalPrice.add("amount");
-          totalPrice.add("currencyCode");
-        });
-        order.add("totalPrice", {
-          alias: "totalPriceV2"
-        }, function (totalPrice) {
-          totalPrice.add("amount");
-          totalPrice.add("currencyCode");
-        });
-        order.add("currencyCode");
-        order.add("totalRefunded", function (totalRefunded) {
-          totalRefunded.add("amount");
-          totalRefunded.add("currencyCode");
-        });
-        order.add("totalRefunded", {
-          alias: "totalRefundedV2"
-        }, function (totalRefunded) {
-          totalRefunded.add("amount");
-          totalRefunded.add("currencyCode");
-        });
-        order.add("customerUrl");
-        order.add("shippingAddress", function (shippingAddress) {
-          shippingAddress.addFragment(spreads.MailingAddressFragment);
-        });
-        order.add("lineItems", {
-          args: {
-            first: 250
-          }
-        }, function (lineItems) {
-          lineItems.add("pageInfo", function (pageInfo) {
-            pageInfo.add("hasNextPage");
-            pageInfo.add("hasPreviousPage");
-          });
-          lineItems.add("edges", function (edges) {
-            edges.add("cursor");
-            edges.add("node", function (node) {
-              node.add("title");
-              node.add("variant", function (variant) {
-                variant.addFragment(spreads.VariantWithProductFragment);
-              });
-              node.add("quantity");
-              node.add("customAttributes", function (customAttributes) {
-                customAttributes.add("key");
-                customAttributes.add("value");
-              });
-            });
-          });
-        });
-      });
-      root.add("lineItems", {
-        args: {
-          first: 250
-        }
-      }, function (lineItems) {
-        lineItems.add("pageInfo", function (pageInfo) {
-          pageInfo.add("hasNextPage");
-          pageInfo.add("hasPreviousPage");
-        });
-        lineItems.add("edges", function (edges) {
-          edges.add("cursor");
-          edges.add("node", function (node) {
-            node.add("id");
-            node.add("title");
-            node.add("variant", function (variant) {
-              variant.addFragment(spreads.VariantWithProductFragment);
-            });
-            node.add("quantity");
-            node.add("customAttributes", function (customAttributes) {
-              customAttributes.add("key");
-              customAttributes.add("value");
-            });
-            node.add("discountAllocations", function (discountAllocations) {
-              discountAllocations.add("allocatedAmount", function (allocatedAmount) {
-                allocatedAmount.add("amount");
-                allocatedAmount.add("currencyCode");
-              });
-              discountAllocations.add("discountApplication", function (discountApplication) {
-                discountApplication.addFragment(spreads.DiscountApplicationFragment);
-              });
-            });
-          });
-        });
-      });
+      root.add("note");
     });
-    document.addMutation([variables.__defaultOperation__.checkoutId, variables.__defaultOperation__.lineItems], function (root) {
-      root.add("checkoutLineItemsReplace", {
+    spreads.CartUserErrorFragment = document.defineFragment("CartUserErrorFragment", "CartUserError", function (root) {
+      root.add("field");
+      root.add("message");
+      root.add("code");
+    });
+    spreads.CartWarningFragment = document.defineFragment("CartWarningFragment", "CartWarning", function (root) {
+      root.add("code");
+      root.add("message");
+    });
+    document.addMutation("CartDiscountCodesUpdate", [variables.CartDiscountCodesUpdate.cartId, variables.CartDiscountCodesUpdate.discountCodes], function (root) {
+      root.add("cartDiscountCodesUpdate", {
         args: {
-          checkoutId: variables.__defaultOperation__.checkoutId,
-          lineItems: variables.__defaultOperation__.lineItems
+          cartId: variables.CartDiscountCodesUpdate.cartId,
+          discountCodes: variables.CartDiscountCodesUpdate.discountCodes
         }
-      }, function (checkoutLineItemsReplace) {
-        checkoutLineItemsReplace.add("userErrors", function (userErrors) {
-          userErrors.addFragment(spreads.CheckoutUserErrorFragment);
+      }, function (cartDiscountCodesUpdate) {
+        cartDiscountCodesUpdate.add("cart", function (cart) {
+          cart.addFragment(spreads.CartFragment);
         });
-        checkoutLineItemsReplace.add("checkout", function (checkout) {
-          checkout.addFragment(spreads.CheckoutFragment);
+        cartDiscountCodesUpdate.add("userErrors", function (userErrors) {
+          userErrors.addFragment(spreads.CartUserErrorFragment);
+        });
+        cartDiscountCodesUpdate.add("warnings", function (warnings) {
+          warnings.addFragment(spreads.CartWarningFragment);
         });
       });
     });
@@ -6120,88 +7037,110 @@ var ShopifyBuy = (function () {
     var document = client.document();
     var spreads = {};
     var variables = {};
-    variables.__defaultOperation__ = {};
-    variables.__defaultOperation__.checkoutId = client.variable("checkoutId", "ID!");
-    variables.__defaultOperation__.lineItems = client.variable("lineItems", "[CheckoutLineItemUpdateInput!]!");
-    spreads.VariantFragment = document.defineFragment("VariantFragment", "ProductVariant", function (root) {
+    variables.CartGiftCardCodesUpdate = {};
+    variables.CartGiftCardCodesUpdate.cartId = client.variable("cartId", "ID!");
+    variables.CartGiftCardCodesUpdate.giftCardCodes = client.variable("giftCardCodes", "[String!]!");
+    spreads.CartLineFragment = document.defineFragment("CartLineFragment", "CartLine", function (root) {
       root.add("id");
-      root.add("title");
-      root.add("price", function (price) {
-        price.add("amount");
-        price.add("currencyCode");
-      });
-      root.add("price", {
-        alias: "priceV2"
-      }, function (price) {
-        price.add("amount");
-        price.add("currencyCode");
-      });
-      root.add("weight");
-      root.add("availableForSale", {
-        alias: "available"
-      });
-      root.add("sku");
-      root.add("compareAtPrice", function (compareAtPrice) {
-        compareAtPrice.add("amount");
-        compareAtPrice.add("currencyCode");
-      });
-      root.add("compareAtPrice", {
-        alias: "compareAtPriceV2"
-      }, function (compareAtPrice) {
-        compareAtPrice.add("amount");
-        compareAtPrice.add("currencyCode");
-      });
-      root.add("image", function (image) {
-        image.add("id");
-        image.add("url", {
-          alias: "src"
-        });
-        image.add("altText");
-        image.add("width");
-        image.add("height");
-      });
-      root.add("selectedOptions", function (selectedOptions) {
-        selectedOptions.add("name");
-        selectedOptions.add("value");
-      });
-      root.add("unitPrice", function (unitPrice) {
-        unitPrice.add("amount");
-        unitPrice.add("currencyCode");
-      });
-      root.add("unitPriceMeasurement", function (unitPriceMeasurement) {
-        unitPriceMeasurement.add("measuredType");
-        unitPriceMeasurement.add("quantityUnit");
-        unitPriceMeasurement.add("quantityValue");
-        unitPriceMeasurement.add("referenceUnit");
-        unitPriceMeasurement.add("referenceValue");
-      });
-    });
-    spreads.DiscountApplicationFragment = document.defineFragment("DiscountApplicationFragment", "DiscountApplication", function (root) {
-      root.add("targetSelection");
-      root.add("allocationMethod");
-      root.add("targetType");
-      root.add("value", function (value) {
-        value.addInlineFragmentOn("MoneyV2", function (MoneyV2) {
-          MoneyV2.add("amount");
-          MoneyV2.add("currencyCode");
-        });
-        value.addInlineFragmentOn("PricingPercentageValue", function (PricingPercentageValue) {
-          PricingPercentageValue.add("percentage");
+      root.add("merchandise", function (merchandise) {
+        merchandise.addInlineFragmentOn("ProductVariant", function (ProductVariant) {
+          ProductVariant.add("id");
+          ProductVariant.add("title");
+          ProductVariant.add("image", function (image) {
+            image.add("id");
+            image.add("url", {
+              alias: "src"
+            });
+            image.add("altText");
+            image.add("width");
+            image.add("height");
+          });
+          ProductVariant.add("product", function (product) {
+            product.add("id");
+            product.add("handle");
+            product.add("title");
+          });
+          ProductVariant.add("weight");
+          ProductVariant.add("availableForSale", {
+            alias: "available"
+          });
+          ProductVariant.add("sku");
+          ProductVariant.add("selectedOptions", function (selectedOptions) {
+            selectedOptions.add("name");
+            selectedOptions.add("value");
+          });
+          ProductVariant.add("compareAtPrice", function (compareAtPrice) {
+            compareAtPrice.add("amount");
+            compareAtPrice.add("currencyCode");
+          });
+          ProductVariant.add("price", function (price) {
+            price.add("amount");
+            price.add("currencyCode");
+          });
+          ProductVariant.add("unitPrice", function (unitPrice) {
+            unitPrice.add("amount");
+            unitPrice.add("currencyCode");
+          });
+          ProductVariant.add("unitPriceMeasurement", function (unitPriceMeasurement) {
+            unitPriceMeasurement.add("measuredType");
+            unitPriceMeasurement.add("quantityUnit");
+            unitPriceMeasurement.add("quantityValue");
+            unitPriceMeasurement.add("referenceUnit");
+            unitPriceMeasurement.add("referenceValue");
+          });
         });
       });
-      root.addInlineFragmentOn("ManualDiscountApplication", function (ManualDiscountApplication) {
-        ManualDiscountApplication.add("title");
-        ManualDiscountApplication.add("description");
+      root.add("quantity");
+      root.add("attributes", function (attributes) {
+        attributes.add("key");
+        attributes.add("value");
       });
-      root.addInlineFragmentOn("DiscountCodeApplication", function (DiscountCodeApplication) {
-        DiscountCodeApplication.add("code");
-        DiscountCodeApplication.add("applicable");
+      root.add("cost", function (cost) {
+        cost.add("totalAmount", function (totalAmount) {
+          totalAmount.add("amount");
+          totalAmount.add("currencyCode");
+        });
+        cost.add("subtotalAmount", function (subtotalAmount) {
+          subtotalAmount.add("amount");
+          subtotalAmount.add("currencyCode");
+        });
+        cost.add("amountPerQuantity", function (amountPerQuantity) {
+          amountPerQuantity.add("amount");
+          amountPerQuantity.add("currencyCode");
+        });
+        cost.add("compareAtAmountPerQuantity", function (compareAtAmountPerQuantity) {
+          compareAtAmountPerQuantity.add("amount");
+          compareAtAmountPerQuantity.add("currencyCode");
+        });
       });
-      root.addInlineFragmentOn("ScriptDiscountApplication", function (ScriptDiscountApplication) {
-        ScriptDiscountApplication.add("title");
-      });
-      root.addInlineFragmentOn("AutomaticDiscountApplication", function (AutomaticDiscountApplication) {
-        AutomaticDiscountApplication.add("title");
+      root.add("discountAllocations", function (discountAllocations) {
+        discountAllocations.add("discountedAmount", function (discountedAmount) {
+          discountedAmount.add("amount");
+          discountedAmount.add("currencyCode");
+        });
+        discountAllocations.add("discountApplication", function (discountApplication) {
+          discountApplication.add("targetType");
+          discountApplication.add("allocationMethod");
+          discountApplication.add("targetSelection");
+          discountApplication.add("value", function (value) {
+            value.addInlineFragmentOn("PricingPercentageValue", function (PricingPercentageValue) {
+              PricingPercentageValue.add("percentage");
+            });
+            value.addInlineFragmentOn("MoneyV2", function (MoneyV2) {
+              MoneyV2.add("amount");
+              MoneyV2.add("currencyCode");
+            });
+          });
+        });
+        discountAllocations.addInlineFragmentOn("CartCodeDiscountAllocation", function (CartCodeDiscountAllocation) {
+          CartCodeDiscountAllocation.add("code");
+        });
+        discountAllocations.addInlineFragmentOn("CartAutomaticDiscountAllocation", function (CartAutomaticDiscountAllocation) {
+          CartAutomaticDiscountAllocation.add("title");
+        });
+        discountAllocations.addInlineFragmentOn("CartCustomDiscountAllocation", function (CartCustomDiscountAllocation) {
+          CartCustomDiscountAllocation.add("title");
+        });
       });
     });
     spreads.AppliedGiftCardFragment = document.defineFragment("AppliedGiftCardFragment", "AppliedGiftCard", function (root) {
@@ -6232,274 +7171,225 @@ var ShopifyBuy = (function () {
       root.add("id");
       root.add("lastCharacters");
     });
-    spreads.VariantWithProductFragment = document.defineFragment("VariantWithProductFragment", "ProductVariant", function (root) {
-      root.addFragment(spreads.VariantFragment);
-      root.add("product", function (product) {
-        product.add("id");
-        product.add("handle");
-      });
-    });
-    spreads.UserErrorFragment = document.defineFragment("UserErrorFragment", "UserError", function (root) {
-      root.add("field");
-      root.add("message");
-    });
-    spreads.CheckoutUserErrorFragment = document.defineFragment("CheckoutUserErrorFragment", "CheckoutUserError", function (root) {
-      root.add("field");
-      root.add("message");
-      root.add("code");
-    });
-    spreads.MailingAddressFragment = document.defineFragment("MailingAddressFragment", "MailingAddress", function (root) {
+    spreads.CartFragment = document.defineFragment("CartFragment", "Cart", function (root) {
       root.add("id");
-      root.add("address1");
-      root.add("address2");
-      root.add("city");
-      root.add("company");
-      root.add("country");
-      root.add("firstName");
-      root.add("formatted");
-      root.add("lastName");
-      root.add("latitude");
-      root.add("longitude");
-      root.add("phone");
-      root.add("province");
-      root.add("zip");
-      root.add("name");
-      root.add("countryCodeV2", {
-        alias: "countryCode"
-      });
-      root.add("provinceCode");
-    });
-    spreads.CheckoutFragment = document.defineFragment("CheckoutFragment", "Checkout", function (root) {
-      root.add("id");
-      root.add("ready");
-      root.add("requiresShipping");
-      root.add("note");
-      root.add("paymentDue", function (paymentDue) {
-        paymentDue.add("amount");
-        paymentDue.add("currencyCode");
-      });
-      root.add("paymentDue", {
-        alias: "paymentDueV2"
-      }, function (paymentDue) {
-        paymentDue.add("amount");
-        paymentDue.add("currencyCode");
-      });
-      root.add("webUrl");
-      root.add("orderStatusUrl");
-      root.add("taxExempt");
-      root.add("taxesIncluded");
-      root.add("currencyCode");
-      root.add("totalTax", function (totalTax) {
-        totalTax.add("amount");
-        totalTax.add("currencyCode");
-      });
-      root.add("totalTax", {
-        alias: "totalTaxV2"
-      }, function (totalTax) {
-        totalTax.add("amount");
-        totalTax.add("currencyCode");
-      });
-      root.add("lineItemsSubtotalPrice", function (lineItemsSubtotalPrice) {
-        lineItemsSubtotalPrice.add("amount");
-        lineItemsSubtotalPrice.add("currencyCode");
-      });
-      root.add("subtotalPrice", function (subtotalPrice) {
-        subtotalPrice.add("amount");
-        subtotalPrice.add("currencyCode");
-      });
-      root.add("subtotalPrice", {
-        alias: "subtotalPriceV2"
-      }, function (subtotalPrice) {
-        subtotalPrice.add("amount");
-        subtotalPrice.add("currencyCode");
-      });
-      root.add("totalPrice", function (totalPrice) {
-        totalPrice.add("amount");
-        totalPrice.add("currencyCode");
-      });
-      root.add("totalPrice", {
-        alias: "totalPriceV2"
-      }, function (totalPrice) {
-        totalPrice.add("amount");
-        totalPrice.add("currencyCode");
-      });
-      root.add("completedAt");
       root.add("createdAt");
       root.add("updatedAt");
-      root.add("email");
-      root.add("discountApplications", {
+      root.add("lines", {
         args: {
           first: 10
         }
-      }, function (discountApplications) {
-        discountApplications.add("pageInfo", function (pageInfo) {
+      }, function (lines) {
+        lines.add("pageInfo", function (pageInfo) {
           pageInfo.add("hasNextPage");
           pageInfo.add("hasPreviousPage");
         });
-        discountApplications.add("edges", function (edges) {
+        lines.add("edges", function (edges) {
           edges.add("node", function (node) {
-            node.addFragment(spreads.DiscountApplicationFragment);
+            node.addFragment(spreads.CartLineFragment);
+          });
+        });
+      });
+      root.add("attributes", function (attributes) {
+        attributes.add("key");
+        attributes.add("value");
+      });
+      root.add("cost", function (cost) {
+        cost.add("checkoutChargeAmount", function (checkoutChargeAmount) {
+          checkoutChargeAmount.add("amount");
+          checkoutChargeAmount.add("currencyCode");
+        });
+        cost.add("totalAmount", function (totalAmount) {
+          totalAmount.add("amount");
+          totalAmount.add("currencyCode");
+        });
+        cost.add("subtotalAmount", function (subtotalAmount) {
+          subtotalAmount.add("amount");
+          subtotalAmount.add("currencyCode");
+        });
+        cost.add("totalTaxAmount", function (totalTaxAmount) {
+          totalTaxAmount.add("amount");
+          totalTaxAmount.add("currencyCode");
+        });
+        cost.add("totalDutyAmount", function (totalDutyAmount) {
+          totalDutyAmount.add("amount");
+          totalDutyAmount.add("currencyCode");
+        });
+      });
+      root.add("checkoutUrl");
+      root.add("discountCodes", function (discountCodes) {
+        discountCodes.add("applicable");
+        discountCodes.add("code");
+      });
+      root.add("discountAllocations", function (discountAllocations) {
+        discountAllocations.add("discountedAmount", function (discountedAmount) {
+          discountedAmount.add("amount");
+          discountedAmount.add("currencyCode");
+        });
+        discountAllocations.add("discountApplication", function (discountApplication) {
+          discountApplication.add("targetType");
+          discountApplication.add("allocationMethod");
+          discountApplication.add("targetSelection");
+          discountApplication.add("value", function (value) {
+            value.addInlineFragmentOn("PricingPercentageValue", function (PricingPercentageValue) {
+              PricingPercentageValue.add("percentage");
+            });
+            value.addInlineFragmentOn("MoneyV2", function (MoneyV2) {
+              MoneyV2.add("amount");
+              MoneyV2.add("currencyCode");
+            });
+          });
+        });
+        discountAllocations.addInlineFragmentOn("CartCodeDiscountAllocation", function (CartCodeDiscountAllocation) {
+          CartCodeDiscountAllocation.add("code");
+        });
+        discountAllocations.addInlineFragmentOn("CartAutomaticDiscountAllocation", function (CartAutomaticDiscountAllocation) {
+          CartAutomaticDiscountAllocation.add("title");
+        });
+        discountAllocations.addInlineFragmentOn("CartCustomDiscountAllocation", function (CartCustomDiscountAllocation) {
+          CartCustomDiscountAllocation.add("title");
+        });
+      });
+      root.add("buyerIdentity", function (buyerIdentity) {
+        buyerIdentity.add("countryCode");
+        buyerIdentity.add("preferences", function (preferences) {
+          preferences.add("delivery", function (delivery) {
+            delivery.add("coordinates", function (coordinates) {
+              coordinates.add("latitude");
+              coordinates.add("longitude");
+              coordinates.add("countryCode");
+            });
+            delivery.add("deliveryMethod");
+            delivery.add("pickupHandle");
+          });
+          preferences.add("wallet");
+        });
+        buyerIdentity.add("email");
+        buyerIdentity.add("phone");
+        buyerIdentity.add("customer", function (customer) {
+          customer.add("email");
+        });
+        buyerIdentity.add("deliveryAddressPreferences", function (deliveryAddressPreferences) {
+          deliveryAddressPreferences.addInlineFragmentOn("MailingAddress", function (MailingAddress) {
+            MailingAddress.add("address1");
+            MailingAddress.add("address2");
+            MailingAddress.add("city");
+            MailingAddress.add("company");
+            MailingAddress.add("country");
+            MailingAddress.add("countryCodeV2");
+            MailingAddress.add("firstName");
+            MailingAddress.add("formatted");
+            MailingAddress.add("formattedArea");
+            MailingAddress.add("lastName");
+            MailingAddress.add("latitude");
+            MailingAddress.add("longitude");
+            MailingAddress.add("name");
+            MailingAddress.add("phone");
+            MailingAddress.add("province");
+            MailingAddress.add("provinceCode");
+            MailingAddress.add("zip");
+          });
+        });
+      });
+      root.add("deliveryGroups", {
+        args: {
+          first: 10
+        }
+      }, function (deliveryGroups) {
+        deliveryGroups.add("pageInfo", function (pageInfo) {
+          pageInfo.add("hasNextPage");
+          pageInfo.add("hasPreviousPage");
+        });
+        deliveryGroups.add("edges", function (edges) {
+          edges.add("node", function (node) {
+            node.add("id");
+            node.add("deliveryAddress", function (deliveryAddress) {
+              deliveryAddress.add("address2");
+              deliveryAddress.add("address1");
+              deliveryAddress.add("city");
+              deliveryAddress.add("company");
+              deliveryAddress.add("country");
+              deliveryAddress.add("countryCodeV2");
+              deliveryAddress.add("firstName");
+              deliveryAddress.add("formatted");
+              deliveryAddress.add("formattedArea");
+              deliveryAddress.add("lastName");
+              deliveryAddress.add("latitude");
+              deliveryAddress.add("longitude");
+              deliveryAddress.add("name");
+              deliveryAddress.add("phone");
+              deliveryAddress.add("province");
+              deliveryAddress.add("provinceCode");
+            });
+            node.add("deliveryOptions", function (deliveryOptions) {
+              deliveryOptions.add("code");
+              deliveryOptions.add("deliveryMethodType");
+              deliveryOptions.add("description");
+              deliveryOptions.add("estimatedCost", function (estimatedCost) {
+                estimatedCost.add("amount");
+                estimatedCost.add("currencyCode");
+              });
+              deliveryOptions.add("handle");
+              deliveryOptions.add("title");
+            });
+            node.add("selectedDeliveryOption", function (selectedDeliveryOption) {
+              selectedDeliveryOption.add("code");
+              selectedDeliveryOption.add("deliveryMethodType");
+              selectedDeliveryOption.add("description");
+              selectedDeliveryOption.add("estimatedCost", function (estimatedCost) {
+                estimatedCost.add("amount");
+                estimatedCost.add("currencyCode");
+              });
+              selectedDeliveryOption.add("handle");
+              selectedDeliveryOption.add("title");
+            });
+            node.add("cartLines", {
+              args: {
+                first: 10
+              }
+            }, function (cartLines) {
+              cartLines.add("pageInfo", function (pageInfo) {
+                pageInfo.add("hasNextPage");
+                pageInfo.add("hasPreviousPage");
+              });
+              cartLines.add("edges", function (edges) {
+                edges.add("node", function (node) {
+                  node.add("id");
+                });
+              });
+            });
           });
         });
       });
       root.add("appliedGiftCards", function (appliedGiftCards) {
         appliedGiftCards.addFragment(spreads.AppliedGiftCardFragment);
       });
-      root.add("shippingAddress", function (shippingAddress) {
-        shippingAddress.addFragment(spreads.MailingAddressFragment);
-      });
-      root.add("shippingLine", function (shippingLine) {
-        shippingLine.add("handle");
-        shippingLine.add("price", function (price) {
-          price.add("amount");
-          price.add("currencyCode");
-        });
-        shippingLine.add("price", {
-          alias: "priceV2"
-        }, function (price) {
-          price.add("amount");
-          price.add("currencyCode");
-        });
-        shippingLine.add("title");
-      });
-      root.add("customAttributes", function (customAttributes) {
-        customAttributes.add("key");
-        customAttributes.add("value");
-      });
-      root.add("order", function (order) {
-        order.add("id");
-        order.add("processedAt");
-        order.add("orderNumber");
-        order.add("subtotalPrice", function (subtotalPrice) {
-          subtotalPrice.add("amount");
-          subtotalPrice.add("currencyCode");
-        });
-        order.add("subtotalPrice", {
-          alias: "subtotalPriceV2"
-        }, function (subtotalPrice) {
-          subtotalPrice.add("amount");
-          subtotalPrice.add("currencyCode");
-        });
-        order.add("totalShippingPrice", function (totalShippingPrice) {
-          totalShippingPrice.add("amount");
-          totalShippingPrice.add("currencyCode");
-        });
-        order.add("totalShippingPrice", {
-          alias: "totalShippingPriceV2"
-        }, function (totalShippingPrice) {
-          totalShippingPrice.add("amount");
-          totalShippingPrice.add("currencyCode");
-        });
-        order.add("totalTax", function (totalTax) {
-          totalTax.add("amount");
-          totalTax.add("currencyCode");
-        });
-        order.add("totalTax", {
-          alias: "totalTaxV2"
-        }, function (totalTax) {
-          totalTax.add("amount");
-          totalTax.add("currencyCode");
-        });
-        order.add("totalPrice", function (totalPrice) {
-          totalPrice.add("amount");
-          totalPrice.add("currencyCode");
-        });
-        order.add("totalPrice", {
-          alias: "totalPriceV2"
-        }, function (totalPrice) {
-          totalPrice.add("amount");
-          totalPrice.add("currencyCode");
-        });
-        order.add("currencyCode");
-        order.add("totalRefunded", function (totalRefunded) {
-          totalRefunded.add("amount");
-          totalRefunded.add("currencyCode");
-        });
-        order.add("totalRefunded", {
-          alias: "totalRefundedV2"
-        }, function (totalRefunded) {
-          totalRefunded.add("amount");
-          totalRefunded.add("currencyCode");
-        });
-        order.add("customerUrl");
-        order.add("shippingAddress", function (shippingAddress) {
-          shippingAddress.addFragment(spreads.MailingAddressFragment);
-        });
-        order.add("lineItems", {
-          args: {
-            first: 250
-          }
-        }, function (lineItems) {
-          lineItems.add("pageInfo", function (pageInfo) {
-            pageInfo.add("hasNextPage");
-            pageInfo.add("hasPreviousPage");
-          });
-          lineItems.add("edges", function (edges) {
-            edges.add("cursor");
-            edges.add("node", function (node) {
-              node.add("title");
-              node.add("variant", function (variant) {
-                variant.addFragment(spreads.VariantWithProductFragment);
-              });
-              node.add("quantity");
-              node.add("customAttributes", function (customAttributes) {
-                customAttributes.add("key");
-                customAttributes.add("value");
-              });
-            });
-          });
-        });
-      });
-      root.add("lineItems", {
-        args: {
-          first: 250
-        }
-      }, function (lineItems) {
-        lineItems.add("pageInfo", function (pageInfo) {
-          pageInfo.add("hasNextPage");
-          pageInfo.add("hasPreviousPage");
-        });
-        lineItems.add("edges", function (edges) {
-          edges.add("cursor");
-          edges.add("node", function (node) {
-            node.add("id");
-            node.add("title");
-            node.add("variant", function (variant) {
-              variant.addFragment(spreads.VariantWithProductFragment);
-            });
-            node.add("quantity");
-            node.add("customAttributes", function (customAttributes) {
-              customAttributes.add("key");
-              customAttributes.add("value");
-            });
-            node.add("discountAllocations", function (discountAllocations) {
-              discountAllocations.add("allocatedAmount", function (allocatedAmount) {
-                allocatedAmount.add("amount");
-                allocatedAmount.add("currencyCode");
-              });
-              discountAllocations.add("discountApplication", function (discountApplication) {
-                discountApplication.addFragment(spreads.DiscountApplicationFragment);
-              });
-            });
-          });
-        });
-      });
+      root.add("note");
     });
-    document.addMutation([variables.__defaultOperation__.checkoutId, variables.__defaultOperation__.lineItems], function (root) {
-      root.add("checkoutLineItemsUpdate", {
+    spreads.CartUserErrorFragment = document.defineFragment("CartUserErrorFragment", "CartUserError", function (root) {
+      root.add("field");
+      root.add("message");
+      root.add("code");
+    });
+    spreads.CartWarningFragment = document.defineFragment("CartWarningFragment", "CartWarning", function (root) {
+      root.add("code");
+      root.add("message");
+    });
+    document.addMutation("CartGiftCardCodesUpdate", [variables.CartGiftCardCodesUpdate.cartId, variables.CartGiftCardCodesUpdate.giftCardCodes], function (root) {
+      root.add("cartGiftCardCodesUpdate", {
         args: {
-          checkoutId: variables.__defaultOperation__.checkoutId,
-          lineItems: variables.__defaultOperation__.lineItems
+          cartId: variables.CartGiftCardCodesUpdate.cartId,
+          giftCardCodes: variables.CartGiftCardCodesUpdate.giftCardCodes
         }
-      }, function (checkoutLineItemsUpdate) {
-        checkoutLineItemsUpdate.add("userErrors", function (userErrors) {
-          userErrors.addFragment(spreads.UserErrorFragment);
+      }, function (cartGiftCardCodesUpdate) {
+        cartGiftCardCodesUpdate.add("cart", function (cart) {
+          cart.addFragment(spreads.CartFragment);
         });
-        checkoutLineItemsUpdate.add("checkoutUserErrors", function (checkoutUserErrors) {
-          checkoutUserErrors.addFragment(spreads.CheckoutUserErrorFragment);
+        cartGiftCardCodesUpdate.add("userErrors", function (userErrors) {
+          userErrors.addFragment(spreads.CartUserErrorFragment);
         });
-        checkoutLineItemsUpdate.add("checkout", function (checkout) {
-          checkout.addFragment(spreads.CheckoutFragment);
+        cartGiftCardCodesUpdate.add("warnings", function (warnings) {
+          warnings.addFragment(spreads.CartWarningFragment);
         });
       });
     });
@@ -6510,88 +7400,110 @@ var ShopifyBuy = (function () {
     var document = client.document();
     var spreads = {};
     var variables = {};
-    variables.checkoutAttributesUpdateV2 = {};
-    variables.checkoutAttributesUpdateV2.checkoutId = client.variable("checkoutId", "ID!");
-    variables.checkoutAttributesUpdateV2.input = client.variable("input", "CheckoutAttributesUpdateV2Input!");
-    spreads.VariantFragment = document.defineFragment("VariantFragment", "ProductVariant", function (root) {
+    variables.CartLinesAdd = {};
+    variables.CartLinesAdd.cartId = client.variable("cartId", "ID!");
+    variables.CartLinesAdd.lines = client.variable("lines", "[CartLineInput!]!");
+    spreads.CartLineFragment = document.defineFragment("CartLineFragment", "CartLine", function (root) {
       root.add("id");
-      root.add("title");
-      root.add("price", function (price) {
-        price.add("amount");
-        price.add("currencyCode");
-      });
-      root.add("price", {
-        alias: "priceV2"
-      }, function (price) {
-        price.add("amount");
-        price.add("currencyCode");
-      });
-      root.add("weight");
-      root.add("availableForSale", {
-        alias: "available"
-      });
-      root.add("sku");
-      root.add("compareAtPrice", function (compareAtPrice) {
-        compareAtPrice.add("amount");
-        compareAtPrice.add("currencyCode");
-      });
-      root.add("compareAtPrice", {
-        alias: "compareAtPriceV2"
-      }, function (compareAtPrice) {
-        compareAtPrice.add("amount");
-        compareAtPrice.add("currencyCode");
-      });
-      root.add("image", function (image) {
-        image.add("id");
-        image.add("url", {
-          alias: "src"
-        });
-        image.add("altText");
-        image.add("width");
-        image.add("height");
-      });
-      root.add("selectedOptions", function (selectedOptions) {
-        selectedOptions.add("name");
-        selectedOptions.add("value");
-      });
-      root.add("unitPrice", function (unitPrice) {
-        unitPrice.add("amount");
-        unitPrice.add("currencyCode");
-      });
-      root.add("unitPriceMeasurement", function (unitPriceMeasurement) {
-        unitPriceMeasurement.add("measuredType");
-        unitPriceMeasurement.add("quantityUnit");
-        unitPriceMeasurement.add("quantityValue");
-        unitPriceMeasurement.add("referenceUnit");
-        unitPriceMeasurement.add("referenceValue");
-      });
-    });
-    spreads.DiscountApplicationFragment = document.defineFragment("DiscountApplicationFragment", "DiscountApplication", function (root) {
-      root.add("targetSelection");
-      root.add("allocationMethod");
-      root.add("targetType");
-      root.add("value", function (value) {
-        value.addInlineFragmentOn("MoneyV2", function (MoneyV2) {
-          MoneyV2.add("amount");
-          MoneyV2.add("currencyCode");
-        });
-        value.addInlineFragmentOn("PricingPercentageValue", function (PricingPercentageValue) {
-          PricingPercentageValue.add("percentage");
+      root.add("merchandise", function (merchandise) {
+        merchandise.addInlineFragmentOn("ProductVariant", function (ProductVariant) {
+          ProductVariant.add("id");
+          ProductVariant.add("title");
+          ProductVariant.add("image", function (image) {
+            image.add("id");
+            image.add("url", {
+              alias: "src"
+            });
+            image.add("altText");
+            image.add("width");
+            image.add("height");
+          });
+          ProductVariant.add("product", function (product) {
+            product.add("id");
+            product.add("handle");
+            product.add("title");
+          });
+          ProductVariant.add("weight");
+          ProductVariant.add("availableForSale", {
+            alias: "available"
+          });
+          ProductVariant.add("sku");
+          ProductVariant.add("selectedOptions", function (selectedOptions) {
+            selectedOptions.add("name");
+            selectedOptions.add("value");
+          });
+          ProductVariant.add("compareAtPrice", function (compareAtPrice) {
+            compareAtPrice.add("amount");
+            compareAtPrice.add("currencyCode");
+          });
+          ProductVariant.add("price", function (price) {
+            price.add("amount");
+            price.add("currencyCode");
+          });
+          ProductVariant.add("unitPrice", function (unitPrice) {
+            unitPrice.add("amount");
+            unitPrice.add("currencyCode");
+          });
+          ProductVariant.add("unitPriceMeasurement", function (unitPriceMeasurement) {
+            unitPriceMeasurement.add("measuredType");
+            unitPriceMeasurement.add("quantityUnit");
+            unitPriceMeasurement.add("quantityValue");
+            unitPriceMeasurement.add("referenceUnit");
+            unitPriceMeasurement.add("referenceValue");
+          });
         });
       });
-      root.addInlineFragmentOn("ManualDiscountApplication", function (ManualDiscountApplication) {
-        ManualDiscountApplication.add("title");
-        ManualDiscountApplication.add("description");
+      root.add("quantity");
+      root.add("attributes", function (attributes) {
+        attributes.add("key");
+        attributes.add("value");
       });
-      root.addInlineFragmentOn("DiscountCodeApplication", function (DiscountCodeApplication) {
-        DiscountCodeApplication.add("code");
-        DiscountCodeApplication.add("applicable");
+      root.add("cost", function (cost) {
+        cost.add("totalAmount", function (totalAmount) {
+          totalAmount.add("amount");
+          totalAmount.add("currencyCode");
+        });
+        cost.add("subtotalAmount", function (subtotalAmount) {
+          subtotalAmount.add("amount");
+          subtotalAmount.add("currencyCode");
+        });
+        cost.add("amountPerQuantity", function (amountPerQuantity) {
+          amountPerQuantity.add("amount");
+          amountPerQuantity.add("currencyCode");
+        });
+        cost.add("compareAtAmountPerQuantity", function (compareAtAmountPerQuantity) {
+          compareAtAmountPerQuantity.add("amount");
+          compareAtAmountPerQuantity.add("currencyCode");
+        });
       });
-      root.addInlineFragmentOn("ScriptDiscountApplication", function (ScriptDiscountApplication) {
-        ScriptDiscountApplication.add("title");
-      });
-      root.addInlineFragmentOn("AutomaticDiscountApplication", function (AutomaticDiscountApplication) {
-        AutomaticDiscountApplication.add("title");
+      root.add("discountAllocations", function (discountAllocations) {
+        discountAllocations.add("discountedAmount", function (discountedAmount) {
+          discountedAmount.add("amount");
+          discountedAmount.add("currencyCode");
+        });
+        discountAllocations.add("discountApplication", function (discountApplication) {
+          discountApplication.add("targetType");
+          discountApplication.add("allocationMethod");
+          discountApplication.add("targetSelection");
+          discountApplication.add("value", function (value) {
+            value.addInlineFragmentOn("PricingPercentageValue", function (PricingPercentageValue) {
+              PricingPercentageValue.add("percentage");
+            });
+            value.addInlineFragmentOn("MoneyV2", function (MoneyV2) {
+              MoneyV2.add("amount");
+              MoneyV2.add("currencyCode");
+            });
+          });
+        });
+        discountAllocations.addInlineFragmentOn("CartCodeDiscountAllocation", function (CartCodeDiscountAllocation) {
+          CartCodeDiscountAllocation.add("code");
+        });
+        discountAllocations.addInlineFragmentOn("CartAutomaticDiscountAllocation", function (CartAutomaticDiscountAllocation) {
+          CartAutomaticDiscountAllocation.add("title");
+        });
+        discountAllocations.addInlineFragmentOn("CartCustomDiscountAllocation", function (CartCustomDiscountAllocation) {
+          CartCustomDiscountAllocation.add("title");
+        });
       });
     });
     spreads.AppliedGiftCardFragment = document.defineFragment("AppliedGiftCardFragment", "AppliedGiftCard", function (root) {
@@ -6622,274 +7534,225 @@ var ShopifyBuy = (function () {
       root.add("id");
       root.add("lastCharacters");
     });
-    spreads.VariantWithProductFragment = document.defineFragment("VariantWithProductFragment", "ProductVariant", function (root) {
-      root.addFragment(spreads.VariantFragment);
-      root.add("product", function (product) {
-        product.add("id");
-        product.add("handle");
-      });
-    });
-    spreads.UserErrorFragment = document.defineFragment("UserErrorFragment", "UserError", function (root) {
-      root.add("field");
-      root.add("message");
-    });
-    spreads.CheckoutUserErrorFragment = document.defineFragment("CheckoutUserErrorFragment", "CheckoutUserError", function (root) {
-      root.add("field");
-      root.add("message");
-      root.add("code");
-    });
-    spreads.MailingAddressFragment = document.defineFragment("MailingAddressFragment", "MailingAddress", function (root) {
+    spreads.CartFragment = document.defineFragment("CartFragment", "Cart", function (root) {
       root.add("id");
-      root.add("address1");
-      root.add("address2");
-      root.add("city");
-      root.add("company");
-      root.add("country");
-      root.add("firstName");
-      root.add("formatted");
-      root.add("lastName");
-      root.add("latitude");
-      root.add("longitude");
-      root.add("phone");
-      root.add("province");
-      root.add("zip");
-      root.add("name");
-      root.add("countryCodeV2", {
-        alias: "countryCode"
-      });
-      root.add("provinceCode");
-    });
-    spreads.CheckoutFragment = document.defineFragment("CheckoutFragment", "Checkout", function (root) {
-      root.add("id");
-      root.add("ready");
-      root.add("requiresShipping");
-      root.add("note");
-      root.add("paymentDue", function (paymentDue) {
-        paymentDue.add("amount");
-        paymentDue.add("currencyCode");
-      });
-      root.add("paymentDue", {
-        alias: "paymentDueV2"
-      }, function (paymentDue) {
-        paymentDue.add("amount");
-        paymentDue.add("currencyCode");
-      });
-      root.add("webUrl");
-      root.add("orderStatusUrl");
-      root.add("taxExempt");
-      root.add("taxesIncluded");
-      root.add("currencyCode");
-      root.add("totalTax", function (totalTax) {
-        totalTax.add("amount");
-        totalTax.add("currencyCode");
-      });
-      root.add("totalTax", {
-        alias: "totalTaxV2"
-      }, function (totalTax) {
-        totalTax.add("amount");
-        totalTax.add("currencyCode");
-      });
-      root.add("lineItemsSubtotalPrice", function (lineItemsSubtotalPrice) {
-        lineItemsSubtotalPrice.add("amount");
-        lineItemsSubtotalPrice.add("currencyCode");
-      });
-      root.add("subtotalPrice", function (subtotalPrice) {
-        subtotalPrice.add("amount");
-        subtotalPrice.add("currencyCode");
-      });
-      root.add("subtotalPrice", {
-        alias: "subtotalPriceV2"
-      }, function (subtotalPrice) {
-        subtotalPrice.add("amount");
-        subtotalPrice.add("currencyCode");
-      });
-      root.add("totalPrice", function (totalPrice) {
-        totalPrice.add("amount");
-        totalPrice.add("currencyCode");
-      });
-      root.add("totalPrice", {
-        alias: "totalPriceV2"
-      }, function (totalPrice) {
-        totalPrice.add("amount");
-        totalPrice.add("currencyCode");
-      });
-      root.add("completedAt");
       root.add("createdAt");
       root.add("updatedAt");
-      root.add("email");
-      root.add("discountApplications", {
+      root.add("lines", {
         args: {
           first: 10
         }
-      }, function (discountApplications) {
-        discountApplications.add("pageInfo", function (pageInfo) {
+      }, function (lines) {
+        lines.add("pageInfo", function (pageInfo) {
           pageInfo.add("hasNextPage");
           pageInfo.add("hasPreviousPage");
         });
-        discountApplications.add("edges", function (edges) {
+        lines.add("edges", function (edges) {
           edges.add("node", function (node) {
-            node.addFragment(spreads.DiscountApplicationFragment);
+            node.addFragment(spreads.CartLineFragment);
+          });
+        });
+      });
+      root.add("attributes", function (attributes) {
+        attributes.add("key");
+        attributes.add("value");
+      });
+      root.add("cost", function (cost) {
+        cost.add("checkoutChargeAmount", function (checkoutChargeAmount) {
+          checkoutChargeAmount.add("amount");
+          checkoutChargeAmount.add("currencyCode");
+        });
+        cost.add("totalAmount", function (totalAmount) {
+          totalAmount.add("amount");
+          totalAmount.add("currencyCode");
+        });
+        cost.add("subtotalAmount", function (subtotalAmount) {
+          subtotalAmount.add("amount");
+          subtotalAmount.add("currencyCode");
+        });
+        cost.add("totalTaxAmount", function (totalTaxAmount) {
+          totalTaxAmount.add("amount");
+          totalTaxAmount.add("currencyCode");
+        });
+        cost.add("totalDutyAmount", function (totalDutyAmount) {
+          totalDutyAmount.add("amount");
+          totalDutyAmount.add("currencyCode");
+        });
+      });
+      root.add("checkoutUrl");
+      root.add("discountCodes", function (discountCodes) {
+        discountCodes.add("applicable");
+        discountCodes.add("code");
+      });
+      root.add("discountAllocations", function (discountAllocations) {
+        discountAllocations.add("discountedAmount", function (discountedAmount) {
+          discountedAmount.add("amount");
+          discountedAmount.add("currencyCode");
+        });
+        discountAllocations.add("discountApplication", function (discountApplication) {
+          discountApplication.add("targetType");
+          discountApplication.add("allocationMethod");
+          discountApplication.add("targetSelection");
+          discountApplication.add("value", function (value) {
+            value.addInlineFragmentOn("PricingPercentageValue", function (PricingPercentageValue) {
+              PricingPercentageValue.add("percentage");
+            });
+            value.addInlineFragmentOn("MoneyV2", function (MoneyV2) {
+              MoneyV2.add("amount");
+              MoneyV2.add("currencyCode");
+            });
+          });
+        });
+        discountAllocations.addInlineFragmentOn("CartCodeDiscountAllocation", function (CartCodeDiscountAllocation) {
+          CartCodeDiscountAllocation.add("code");
+        });
+        discountAllocations.addInlineFragmentOn("CartAutomaticDiscountAllocation", function (CartAutomaticDiscountAllocation) {
+          CartAutomaticDiscountAllocation.add("title");
+        });
+        discountAllocations.addInlineFragmentOn("CartCustomDiscountAllocation", function (CartCustomDiscountAllocation) {
+          CartCustomDiscountAllocation.add("title");
+        });
+      });
+      root.add("buyerIdentity", function (buyerIdentity) {
+        buyerIdentity.add("countryCode");
+        buyerIdentity.add("preferences", function (preferences) {
+          preferences.add("delivery", function (delivery) {
+            delivery.add("coordinates", function (coordinates) {
+              coordinates.add("latitude");
+              coordinates.add("longitude");
+              coordinates.add("countryCode");
+            });
+            delivery.add("deliveryMethod");
+            delivery.add("pickupHandle");
+          });
+          preferences.add("wallet");
+        });
+        buyerIdentity.add("email");
+        buyerIdentity.add("phone");
+        buyerIdentity.add("customer", function (customer) {
+          customer.add("email");
+        });
+        buyerIdentity.add("deliveryAddressPreferences", function (deliveryAddressPreferences) {
+          deliveryAddressPreferences.addInlineFragmentOn("MailingAddress", function (MailingAddress) {
+            MailingAddress.add("address1");
+            MailingAddress.add("address2");
+            MailingAddress.add("city");
+            MailingAddress.add("company");
+            MailingAddress.add("country");
+            MailingAddress.add("countryCodeV2");
+            MailingAddress.add("firstName");
+            MailingAddress.add("formatted");
+            MailingAddress.add("formattedArea");
+            MailingAddress.add("lastName");
+            MailingAddress.add("latitude");
+            MailingAddress.add("longitude");
+            MailingAddress.add("name");
+            MailingAddress.add("phone");
+            MailingAddress.add("province");
+            MailingAddress.add("provinceCode");
+            MailingAddress.add("zip");
+          });
+        });
+      });
+      root.add("deliveryGroups", {
+        args: {
+          first: 10
+        }
+      }, function (deliveryGroups) {
+        deliveryGroups.add("pageInfo", function (pageInfo) {
+          pageInfo.add("hasNextPage");
+          pageInfo.add("hasPreviousPage");
+        });
+        deliveryGroups.add("edges", function (edges) {
+          edges.add("node", function (node) {
+            node.add("id");
+            node.add("deliveryAddress", function (deliveryAddress) {
+              deliveryAddress.add("address2");
+              deliveryAddress.add("address1");
+              deliveryAddress.add("city");
+              deliveryAddress.add("company");
+              deliveryAddress.add("country");
+              deliveryAddress.add("countryCodeV2");
+              deliveryAddress.add("firstName");
+              deliveryAddress.add("formatted");
+              deliveryAddress.add("formattedArea");
+              deliveryAddress.add("lastName");
+              deliveryAddress.add("latitude");
+              deliveryAddress.add("longitude");
+              deliveryAddress.add("name");
+              deliveryAddress.add("phone");
+              deliveryAddress.add("province");
+              deliveryAddress.add("provinceCode");
+            });
+            node.add("deliveryOptions", function (deliveryOptions) {
+              deliveryOptions.add("code");
+              deliveryOptions.add("deliveryMethodType");
+              deliveryOptions.add("description");
+              deliveryOptions.add("estimatedCost", function (estimatedCost) {
+                estimatedCost.add("amount");
+                estimatedCost.add("currencyCode");
+              });
+              deliveryOptions.add("handle");
+              deliveryOptions.add("title");
+            });
+            node.add("selectedDeliveryOption", function (selectedDeliveryOption) {
+              selectedDeliveryOption.add("code");
+              selectedDeliveryOption.add("deliveryMethodType");
+              selectedDeliveryOption.add("description");
+              selectedDeliveryOption.add("estimatedCost", function (estimatedCost) {
+                estimatedCost.add("amount");
+                estimatedCost.add("currencyCode");
+              });
+              selectedDeliveryOption.add("handle");
+              selectedDeliveryOption.add("title");
+            });
+            node.add("cartLines", {
+              args: {
+                first: 10
+              }
+            }, function (cartLines) {
+              cartLines.add("pageInfo", function (pageInfo) {
+                pageInfo.add("hasNextPage");
+                pageInfo.add("hasPreviousPage");
+              });
+              cartLines.add("edges", function (edges) {
+                edges.add("node", function (node) {
+                  node.add("id");
+                });
+              });
+            });
           });
         });
       });
       root.add("appliedGiftCards", function (appliedGiftCards) {
         appliedGiftCards.addFragment(spreads.AppliedGiftCardFragment);
       });
-      root.add("shippingAddress", function (shippingAddress) {
-        shippingAddress.addFragment(spreads.MailingAddressFragment);
-      });
-      root.add("shippingLine", function (shippingLine) {
-        shippingLine.add("handle");
-        shippingLine.add("price", function (price) {
-          price.add("amount");
-          price.add("currencyCode");
-        });
-        shippingLine.add("price", {
-          alias: "priceV2"
-        }, function (price) {
-          price.add("amount");
-          price.add("currencyCode");
-        });
-        shippingLine.add("title");
-      });
-      root.add("customAttributes", function (customAttributes) {
-        customAttributes.add("key");
-        customAttributes.add("value");
-      });
-      root.add("order", function (order) {
-        order.add("id");
-        order.add("processedAt");
-        order.add("orderNumber");
-        order.add("subtotalPrice", function (subtotalPrice) {
-          subtotalPrice.add("amount");
-          subtotalPrice.add("currencyCode");
-        });
-        order.add("subtotalPrice", {
-          alias: "subtotalPriceV2"
-        }, function (subtotalPrice) {
-          subtotalPrice.add("amount");
-          subtotalPrice.add("currencyCode");
-        });
-        order.add("totalShippingPrice", function (totalShippingPrice) {
-          totalShippingPrice.add("amount");
-          totalShippingPrice.add("currencyCode");
-        });
-        order.add("totalShippingPrice", {
-          alias: "totalShippingPriceV2"
-        }, function (totalShippingPrice) {
-          totalShippingPrice.add("amount");
-          totalShippingPrice.add("currencyCode");
-        });
-        order.add("totalTax", function (totalTax) {
-          totalTax.add("amount");
-          totalTax.add("currencyCode");
-        });
-        order.add("totalTax", {
-          alias: "totalTaxV2"
-        }, function (totalTax) {
-          totalTax.add("amount");
-          totalTax.add("currencyCode");
-        });
-        order.add("totalPrice", function (totalPrice) {
-          totalPrice.add("amount");
-          totalPrice.add("currencyCode");
-        });
-        order.add("totalPrice", {
-          alias: "totalPriceV2"
-        }, function (totalPrice) {
-          totalPrice.add("amount");
-          totalPrice.add("currencyCode");
-        });
-        order.add("currencyCode");
-        order.add("totalRefunded", function (totalRefunded) {
-          totalRefunded.add("amount");
-          totalRefunded.add("currencyCode");
-        });
-        order.add("totalRefunded", {
-          alias: "totalRefundedV2"
-        }, function (totalRefunded) {
-          totalRefunded.add("amount");
-          totalRefunded.add("currencyCode");
-        });
-        order.add("customerUrl");
-        order.add("shippingAddress", function (shippingAddress) {
-          shippingAddress.addFragment(spreads.MailingAddressFragment);
-        });
-        order.add("lineItems", {
-          args: {
-            first: 250
-          }
-        }, function (lineItems) {
-          lineItems.add("pageInfo", function (pageInfo) {
-            pageInfo.add("hasNextPage");
-            pageInfo.add("hasPreviousPage");
-          });
-          lineItems.add("edges", function (edges) {
-            edges.add("cursor");
-            edges.add("node", function (node) {
-              node.add("title");
-              node.add("variant", function (variant) {
-                variant.addFragment(spreads.VariantWithProductFragment);
-              });
-              node.add("quantity");
-              node.add("customAttributes", function (customAttributes) {
-                customAttributes.add("key");
-                customAttributes.add("value");
-              });
-            });
-          });
-        });
-      });
-      root.add("lineItems", {
-        args: {
-          first: 250
-        }
-      }, function (lineItems) {
-        lineItems.add("pageInfo", function (pageInfo) {
-          pageInfo.add("hasNextPage");
-          pageInfo.add("hasPreviousPage");
-        });
-        lineItems.add("edges", function (edges) {
-          edges.add("cursor");
-          edges.add("node", function (node) {
-            node.add("id");
-            node.add("title");
-            node.add("variant", function (variant) {
-              variant.addFragment(spreads.VariantWithProductFragment);
-            });
-            node.add("quantity");
-            node.add("customAttributes", function (customAttributes) {
-              customAttributes.add("key");
-              customAttributes.add("value");
-            });
-            node.add("discountAllocations", function (discountAllocations) {
-              discountAllocations.add("allocatedAmount", function (allocatedAmount) {
-                allocatedAmount.add("amount");
-                allocatedAmount.add("currencyCode");
-              });
-              discountAllocations.add("discountApplication", function (discountApplication) {
-                discountApplication.addFragment(spreads.DiscountApplicationFragment);
-              });
-            });
-          });
-        });
-      });
+      root.add("note");
     });
-    document.addMutation("checkoutAttributesUpdateV2", [variables.checkoutAttributesUpdateV2.checkoutId, variables.checkoutAttributesUpdateV2.input], function (root) {
-      root.add("checkoutAttributesUpdateV2", {
+    spreads.CartUserErrorFragment = document.defineFragment("CartUserErrorFragment", "CartUserError", function (root) {
+      root.add("field");
+      root.add("message");
+      root.add("code");
+    });
+    spreads.CartWarningFragment = document.defineFragment("CartWarningFragment", "CartWarning", function (root) {
+      root.add("code");
+      root.add("message");
+    });
+    document.addMutation("CartLinesAdd", [variables.CartLinesAdd.cartId, variables.CartLinesAdd.lines], function (root) {
+      root.add("cartLinesAdd", {
         args: {
-          checkoutId: variables.checkoutAttributesUpdateV2.checkoutId,
-          input: variables.checkoutAttributesUpdateV2.input
+          cartId: variables.CartLinesAdd.cartId,
+          lines: variables.CartLinesAdd.lines
         }
-      }, function (checkoutAttributesUpdateV2) {
-        checkoutAttributesUpdateV2.add("userErrors", function (userErrors) {
-          userErrors.addFragment(spreads.UserErrorFragment);
+      }, function (cartLinesAdd) {
+        cartLinesAdd.add("cart", function (cart) {
+          cart.addFragment(spreads.CartFragment);
         });
-        checkoutAttributesUpdateV2.add("checkoutUserErrors", function (checkoutUserErrors) {
-          checkoutUserErrors.addFragment(spreads.CheckoutUserErrorFragment);
+        cartLinesAdd.add("userErrors", function (userErrors) {
+          userErrors.addFragment(spreads.CartUserErrorFragment);
         });
-        checkoutAttributesUpdateV2.add("checkout", function (checkout) {
-          checkout.addFragment(spreads.CheckoutFragment);
+        cartLinesAdd.add("warnings", function (warnings) {
+          warnings.addFragment(spreads.CartWarningFragment);
         });
       });
     });
@@ -6900,88 +7763,110 @@ var ShopifyBuy = (function () {
     var document = client.document();
     var spreads = {};
     var variables = {};
-    variables.checkoutDiscountCodeApplyV2 = {};
-    variables.checkoutDiscountCodeApplyV2.discountCode = client.variable("discountCode", "String!");
-    variables.checkoutDiscountCodeApplyV2.checkoutId = client.variable("checkoutId", "ID!");
-    spreads.VariantFragment = document.defineFragment("VariantFragment", "ProductVariant", function (root) {
+    variables.CartLinesRemove = {};
+    variables.CartLinesRemove.cartId = client.variable("cartId", "ID!");
+    variables.CartLinesRemove.lineIds = client.variable("lineIds", "[ID!]!");
+    spreads.CartLineFragment = document.defineFragment("CartLineFragment", "CartLine", function (root) {
       root.add("id");
-      root.add("title");
-      root.add("price", function (price) {
-        price.add("amount");
-        price.add("currencyCode");
-      });
-      root.add("price", {
-        alias: "priceV2"
-      }, function (price) {
-        price.add("amount");
-        price.add("currencyCode");
-      });
-      root.add("weight");
-      root.add("availableForSale", {
-        alias: "available"
-      });
-      root.add("sku");
-      root.add("compareAtPrice", function (compareAtPrice) {
-        compareAtPrice.add("amount");
-        compareAtPrice.add("currencyCode");
-      });
-      root.add("compareAtPrice", {
-        alias: "compareAtPriceV2"
-      }, function (compareAtPrice) {
-        compareAtPrice.add("amount");
-        compareAtPrice.add("currencyCode");
-      });
-      root.add("image", function (image) {
-        image.add("id");
-        image.add("url", {
-          alias: "src"
-        });
-        image.add("altText");
-        image.add("width");
-        image.add("height");
-      });
-      root.add("selectedOptions", function (selectedOptions) {
-        selectedOptions.add("name");
-        selectedOptions.add("value");
-      });
-      root.add("unitPrice", function (unitPrice) {
-        unitPrice.add("amount");
-        unitPrice.add("currencyCode");
-      });
-      root.add("unitPriceMeasurement", function (unitPriceMeasurement) {
-        unitPriceMeasurement.add("measuredType");
-        unitPriceMeasurement.add("quantityUnit");
-        unitPriceMeasurement.add("quantityValue");
-        unitPriceMeasurement.add("referenceUnit");
-        unitPriceMeasurement.add("referenceValue");
-      });
-    });
-    spreads.DiscountApplicationFragment = document.defineFragment("DiscountApplicationFragment", "DiscountApplication", function (root) {
-      root.add("targetSelection");
-      root.add("allocationMethod");
-      root.add("targetType");
-      root.add("value", function (value) {
-        value.addInlineFragmentOn("MoneyV2", function (MoneyV2) {
-          MoneyV2.add("amount");
-          MoneyV2.add("currencyCode");
-        });
-        value.addInlineFragmentOn("PricingPercentageValue", function (PricingPercentageValue) {
-          PricingPercentageValue.add("percentage");
+      root.add("merchandise", function (merchandise) {
+        merchandise.addInlineFragmentOn("ProductVariant", function (ProductVariant) {
+          ProductVariant.add("id");
+          ProductVariant.add("title");
+          ProductVariant.add("image", function (image) {
+            image.add("id");
+            image.add("url", {
+              alias: "src"
+            });
+            image.add("altText");
+            image.add("width");
+            image.add("height");
+          });
+          ProductVariant.add("product", function (product) {
+            product.add("id");
+            product.add("handle");
+            product.add("title");
+          });
+          ProductVariant.add("weight");
+          ProductVariant.add("availableForSale", {
+            alias: "available"
+          });
+          ProductVariant.add("sku");
+          ProductVariant.add("selectedOptions", function (selectedOptions) {
+            selectedOptions.add("name");
+            selectedOptions.add("value");
+          });
+          ProductVariant.add("compareAtPrice", function (compareAtPrice) {
+            compareAtPrice.add("amount");
+            compareAtPrice.add("currencyCode");
+          });
+          ProductVariant.add("price", function (price) {
+            price.add("amount");
+            price.add("currencyCode");
+          });
+          ProductVariant.add("unitPrice", function (unitPrice) {
+            unitPrice.add("amount");
+            unitPrice.add("currencyCode");
+          });
+          ProductVariant.add("unitPriceMeasurement", function (unitPriceMeasurement) {
+            unitPriceMeasurement.add("measuredType");
+            unitPriceMeasurement.add("quantityUnit");
+            unitPriceMeasurement.add("quantityValue");
+            unitPriceMeasurement.add("referenceUnit");
+            unitPriceMeasurement.add("referenceValue");
+          });
         });
       });
-      root.addInlineFragmentOn("ManualDiscountApplication", function (ManualDiscountApplication) {
-        ManualDiscountApplication.add("title");
-        ManualDiscountApplication.add("description");
+      root.add("quantity");
+      root.add("attributes", function (attributes) {
+        attributes.add("key");
+        attributes.add("value");
       });
-      root.addInlineFragmentOn("DiscountCodeApplication", function (DiscountCodeApplication) {
-        DiscountCodeApplication.add("code");
-        DiscountCodeApplication.add("applicable");
+      root.add("cost", function (cost) {
+        cost.add("totalAmount", function (totalAmount) {
+          totalAmount.add("amount");
+          totalAmount.add("currencyCode");
+        });
+        cost.add("subtotalAmount", function (subtotalAmount) {
+          subtotalAmount.add("amount");
+          subtotalAmount.add("currencyCode");
+        });
+        cost.add("amountPerQuantity", function (amountPerQuantity) {
+          amountPerQuantity.add("amount");
+          amountPerQuantity.add("currencyCode");
+        });
+        cost.add("compareAtAmountPerQuantity", function (compareAtAmountPerQuantity) {
+          compareAtAmountPerQuantity.add("amount");
+          compareAtAmountPerQuantity.add("currencyCode");
+        });
       });
-      root.addInlineFragmentOn("ScriptDiscountApplication", function (ScriptDiscountApplication) {
-        ScriptDiscountApplication.add("title");
-      });
-      root.addInlineFragmentOn("AutomaticDiscountApplication", function (AutomaticDiscountApplication) {
-        AutomaticDiscountApplication.add("title");
+      root.add("discountAllocations", function (discountAllocations) {
+        discountAllocations.add("discountedAmount", function (discountedAmount) {
+          discountedAmount.add("amount");
+          discountedAmount.add("currencyCode");
+        });
+        discountAllocations.add("discountApplication", function (discountApplication) {
+          discountApplication.add("targetType");
+          discountApplication.add("allocationMethod");
+          discountApplication.add("targetSelection");
+          discountApplication.add("value", function (value) {
+            value.addInlineFragmentOn("PricingPercentageValue", function (PricingPercentageValue) {
+              PricingPercentageValue.add("percentage");
+            });
+            value.addInlineFragmentOn("MoneyV2", function (MoneyV2) {
+              MoneyV2.add("amount");
+              MoneyV2.add("currencyCode");
+            });
+          });
+        });
+        discountAllocations.addInlineFragmentOn("CartCodeDiscountAllocation", function (CartCodeDiscountAllocation) {
+          CartCodeDiscountAllocation.add("code");
+        });
+        discountAllocations.addInlineFragmentOn("CartAutomaticDiscountAllocation", function (CartAutomaticDiscountAllocation) {
+          CartAutomaticDiscountAllocation.add("title");
+        });
+        discountAllocations.addInlineFragmentOn("CartCustomDiscountAllocation", function (CartCustomDiscountAllocation) {
+          CartCustomDiscountAllocation.add("title");
+        });
       });
     });
     spreads.AppliedGiftCardFragment = document.defineFragment("AppliedGiftCardFragment", "AppliedGiftCard", function (root) {
@@ -7012,274 +7897,225 @@ var ShopifyBuy = (function () {
       root.add("id");
       root.add("lastCharacters");
     });
-    spreads.VariantWithProductFragment = document.defineFragment("VariantWithProductFragment", "ProductVariant", function (root) {
-      root.addFragment(spreads.VariantFragment);
-      root.add("product", function (product) {
-        product.add("id");
-        product.add("handle");
-      });
-    });
-    spreads.UserErrorFragment = document.defineFragment("UserErrorFragment", "UserError", function (root) {
-      root.add("field");
-      root.add("message");
-    });
-    spreads.CheckoutUserErrorFragment = document.defineFragment("CheckoutUserErrorFragment", "CheckoutUserError", function (root) {
-      root.add("field");
-      root.add("message");
-      root.add("code");
-    });
-    spreads.MailingAddressFragment = document.defineFragment("MailingAddressFragment", "MailingAddress", function (root) {
+    spreads.CartFragment = document.defineFragment("CartFragment", "Cart", function (root) {
       root.add("id");
-      root.add("address1");
-      root.add("address2");
-      root.add("city");
-      root.add("company");
-      root.add("country");
-      root.add("firstName");
-      root.add("formatted");
-      root.add("lastName");
-      root.add("latitude");
-      root.add("longitude");
-      root.add("phone");
-      root.add("province");
-      root.add("zip");
-      root.add("name");
-      root.add("countryCodeV2", {
-        alias: "countryCode"
-      });
-      root.add("provinceCode");
-    });
-    spreads.CheckoutFragment = document.defineFragment("CheckoutFragment", "Checkout", function (root) {
-      root.add("id");
-      root.add("ready");
-      root.add("requiresShipping");
-      root.add("note");
-      root.add("paymentDue", function (paymentDue) {
-        paymentDue.add("amount");
-        paymentDue.add("currencyCode");
-      });
-      root.add("paymentDue", {
-        alias: "paymentDueV2"
-      }, function (paymentDue) {
-        paymentDue.add("amount");
-        paymentDue.add("currencyCode");
-      });
-      root.add("webUrl");
-      root.add("orderStatusUrl");
-      root.add("taxExempt");
-      root.add("taxesIncluded");
-      root.add("currencyCode");
-      root.add("totalTax", function (totalTax) {
-        totalTax.add("amount");
-        totalTax.add("currencyCode");
-      });
-      root.add("totalTax", {
-        alias: "totalTaxV2"
-      }, function (totalTax) {
-        totalTax.add("amount");
-        totalTax.add("currencyCode");
-      });
-      root.add("lineItemsSubtotalPrice", function (lineItemsSubtotalPrice) {
-        lineItemsSubtotalPrice.add("amount");
-        lineItemsSubtotalPrice.add("currencyCode");
-      });
-      root.add("subtotalPrice", function (subtotalPrice) {
-        subtotalPrice.add("amount");
-        subtotalPrice.add("currencyCode");
-      });
-      root.add("subtotalPrice", {
-        alias: "subtotalPriceV2"
-      }, function (subtotalPrice) {
-        subtotalPrice.add("amount");
-        subtotalPrice.add("currencyCode");
-      });
-      root.add("totalPrice", function (totalPrice) {
-        totalPrice.add("amount");
-        totalPrice.add("currencyCode");
-      });
-      root.add("totalPrice", {
-        alias: "totalPriceV2"
-      }, function (totalPrice) {
-        totalPrice.add("amount");
-        totalPrice.add("currencyCode");
-      });
-      root.add("completedAt");
       root.add("createdAt");
       root.add("updatedAt");
-      root.add("email");
-      root.add("discountApplications", {
+      root.add("lines", {
         args: {
           first: 10
         }
-      }, function (discountApplications) {
-        discountApplications.add("pageInfo", function (pageInfo) {
+      }, function (lines) {
+        lines.add("pageInfo", function (pageInfo) {
           pageInfo.add("hasNextPage");
           pageInfo.add("hasPreviousPage");
         });
-        discountApplications.add("edges", function (edges) {
+        lines.add("edges", function (edges) {
           edges.add("node", function (node) {
-            node.addFragment(spreads.DiscountApplicationFragment);
+            node.addFragment(spreads.CartLineFragment);
+          });
+        });
+      });
+      root.add("attributes", function (attributes) {
+        attributes.add("key");
+        attributes.add("value");
+      });
+      root.add("cost", function (cost) {
+        cost.add("checkoutChargeAmount", function (checkoutChargeAmount) {
+          checkoutChargeAmount.add("amount");
+          checkoutChargeAmount.add("currencyCode");
+        });
+        cost.add("totalAmount", function (totalAmount) {
+          totalAmount.add("amount");
+          totalAmount.add("currencyCode");
+        });
+        cost.add("subtotalAmount", function (subtotalAmount) {
+          subtotalAmount.add("amount");
+          subtotalAmount.add("currencyCode");
+        });
+        cost.add("totalTaxAmount", function (totalTaxAmount) {
+          totalTaxAmount.add("amount");
+          totalTaxAmount.add("currencyCode");
+        });
+        cost.add("totalDutyAmount", function (totalDutyAmount) {
+          totalDutyAmount.add("amount");
+          totalDutyAmount.add("currencyCode");
+        });
+      });
+      root.add("checkoutUrl");
+      root.add("discountCodes", function (discountCodes) {
+        discountCodes.add("applicable");
+        discountCodes.add("code");
+      });
+      root.add("discountAllocations", function (discountAllocations) {
+        discountAllocations.add("discountedAmount", function (discountedAmount) {
+          discountedAmount.add("amount");
+          discountedAmount.add("currencyCode");
+        });
+        discountAllocations.add("discountApplication", function (discountApplication) {
+          discountApplication.add("targetType");
+          discountApplication.add("allocationMethod");
+          discountApplication.add("targetSelection");
+          discountApplication.add("value", function (value) {
+            value.addInlineFragmentOn("PricingPercentageValue", function (PricingPercentageValue) {
+              PricingPercentageValue.add("percentage");
+            });
+            value.addInlineFragmentOn("MoneyV2", function (MoneyV2) {
+              MoneyV2.add("amount");
+              MoneyV2.add("currencyCode");
+            });
+          });
+        });
+        discountAllocations.addInlineFragmentOn("CartCodeDiscountAllocation", function (CartCodeDiscountAllocation) {
+          CartCodeDiscountAllocation.add("code");
+        });
+        discountAllocations.addInlineFragmentOn("CartAutomaticDiscountAllocation", function (CartAutomaticDiscountAllocation) {
+          CartAutomaticDiscountAllocation.add("title");
+        });
+        discountAllocations.addInlineFragmentOn("CartCustomDiscountAllocation", function (CartCustomDiscountAllocation) {
+          CartCustomDiscountAllocation.add("title");
+        });
+      });
+      root.add("buyerIdentity", function (buyerIdentity) {
+        buyerIdentity.add("countryCode");
+        buyerIdentity.add("preferences", function (preferences) {
+          preferences.add("delivery", function (delivery) {
+            delivery.add("coordinates", function (coordinates) {
+              coordinates.add("latitude");
+              coordinates.add("longitude");
+              coordinates.add("countryCode");
+            });
+            delivery.add("deliveryMethod");
+            delivery.add("pickupHandle");
+          });
+          preferences.add("wallet");
+        });
+        buyerIdentity.add("email");
+        buyerIdentity.add("phone");
+        buyerIdentity.add("customer", function (customer) {
+          customer.add("email");
+        });
+        buyerIdentity.add("deliveryAddressPreferences", function (deliveryAddressPreferences) {
+          deliveryAddressPreferences.addInlineFragmentOn("MailingAddress", function (MailingAddress) {
+            MailingAddress.add("address1");
+            MailingAddress.add("address2");
+            MailingAddress.add("city");
+            MailingAddress.add("company");
+            MailingAddress.add("country");
+            MailingAddress.add("countryCodeV2");
+            MailingAddress.add("firstName");
+            MailingAddress.add("formatted");
+            MailingAddress.add("formattedArea");
+            MailingAddress.add("lastName");
+            MailingAddress.add("latitude");
+            MailingAddress.add("longitude");
+            MailingAddress.add("name");
+            MailingAddress.add("phone");
+            MailingAddress.add("province");
+            MailingAddress.add("provinceCode");
+            MailingAddress.add("zip");
+          });
+        });
+      });
+      root.add("deliveryGroups", {
+        args: {
+          first: 10
+        }
+      }, function (deliveryGroups) {
+        deliveryGroups.add("pageInfo", function (pageInfo) {
+          pageInfo.add("hasNextPage");
+          pageInfo.add("hasPreviousPage");
+        });
+        deliveryGroups.add("edges", function (edges) {
+          edges.add("node", function (node) {
+            node.add("id");
+            node.add("deliveryAddress", function (deliveryAddress) {
+              deliveryAddress.add("address2");
+              deliveryAddress.add("address1");
+              deliveryAddress.add("city");
+              deliveryAddress.add("company");
+              deliveryAddress.add("country");
+              deliveryAddress.add("countryCodeV2");
+              deliveryAddress.add("firstName");
+              deliveryAddress.add("formatted");
+              deliveryAddress.add("formattedArea");
+              deliveryAddress.add("lastName");
+              deliveryAddress.add("latitude");
+              deliveryAddress.add("longitude");
+              deliveryAddress.add("name");
+              deliveryAddress.add("phone");
+              deliveryAddress.add("province");
+              deliveryAddress.add("provinceCode");
+            });
+            node.add("deliveryOptions", function (deliveryOptions) {
+              deliveryOptions.add("code");
+              deliveryOptions.add("deliveryMethodType");
+              deliveryOptions.add("description");
+              deliveryOptions.add("estimatedCost", function (estimatedCost) {
+                estimatedCost.add("amount");
+                estimatedCost.add("currencyCode");
+              });
+              deliveryOptions.add("handle");
+              deliveryOptions.add("title");
+            });
+            node.add("selectedDeliveryOption", function (selectedDeliveryOption) {
+              selectedDeliveryOption.add("code");
+              selectedDeliveryOption.add("deliveryMethodType");
+              selectedDeliveryOption.add("description");
+              selectedDeliveryOption.add("estimatedCost", function (estimatedCost) {
+                estimatedCost.add("amount");
+                estimatedCost.add("currencyCode");
+              });
+              selectedDeliveryOption.add("handle");
+              selectedDeliveryOption.add("title");
+            });
+            node.add("cartLines", {
+              args: {
+                first: 10
+              }
+            }, function (cartLines) {
+              cartLines.add("pageInfo", function (pageInfo) {
+                pageInfo.add("hasNextPage");
+                pageInfo.add("hasPreviousPage");
+              });
+              cartLines.add("edges", function (edges) {
+                edges.add("node", function (node) {
+                  node.add("id");
+                });
+              });
+            });
           });
         });
       });
       root.add("appliedGiftCards", function (appliedGiftCards) {
         appliedGiftCards.addFragment(spreads.AppliedGiftCardFragment);
       });
-      root.add("shippingAddress", function (shippingAddress) {
-        shippingAddress.addFragment(spreads.MailingAddressFragment);
-      });
-      root.add("shippingLine", function (shippingLine) {
-        shippingLine.add("handle");
-        shippingLine.add("price", function (price) {
-          price.add("amount");
-          price.add("currencyCode");
-        });
-        shippingLine.add("price", {
-          alias: "priceV2"
-        }, function (price) {
-          price.add("amount");
-          price.add("currencyCode");
-        });
-        shippingLine.add("title");
-      });
-      root.add("customAttributes", function (customAttributes) {
-        customAttributes.add("key");
-        customAttributes.add("value");
-      });
-      root.add("order", function (order) {
-        order.add("id");
-        order.add("processedAt");
-        order.add("orderNumber");
-        order.add("subtotalPrice", function (subtotalPrice) {
-          subtotalPrice.add("amount");
-          subtotalPrice.add("currencyCode");
-        });
-        order.add("subtotalPrice", {
-          alias: "subtotalPriceV2"
-        }, function (subtotalPrice) {
-          subtotalPrice.add("amount");
-          subtotalPrice.add("currencyCode");
-        });
-        order.add("totalShippingPrice", function (totalShippingPrice) {
-          totalShippingPrice.add("amount");
-          totalShippingPrice.add("currencyCode");
-        });
-        order.add("totalShippingPrice", {
-          alias: "totalShippingPriceV2"
-        }, function (totalShippingPrice) {
-          totalShippingPrice.add("amount");
-          totalShippingPrice.add("currencyCode");
-        });
-        order.add("totalTax", function (totalTax) {
-          totalTax.add("amount");
-          totalTax.add("currencyCode");
-        });
-        order.add("totalTax", {
-          alias: "totalTaxV2"
-        }, function (totalTax) {
-          totalTax.add("amount");
-          totalTax.add("currencyCode");
-        });
-        order.add("totalPrice", function (totalPrice) {
-          totalPrice.add("amount");
-          totalPrice.add("currencyCode");
-        });
-        order.add("totalPrice", {
-          alias: "totalPriceV2"
-        }, function (totalPrice) {
-          totalPrice.add("amount");
-          totalPrice.add("currencyCode");
-        });
-        order.add("currencyCode");
-        order.add("totalRefunded", function (totalRefunded) {
-          totalRefunded.add("amount");
-          totalRefunded.add("currencyCode");
-        });
-        order.add("totalRefunded", {
-          alias: "totalRefundedV2"
-        }, function (totalRefunded) {
-          totalRefunded.add("amount");
-          totalRefunded.add("currencyCode");
-        });
-        order.add("customerUrl");
-        order.add("shippingAddress", function (shippingAddress) {
-          shippingAddress.addFragment(spreads.MailingAddressFragment);
-        });
-        order.add("lineItems", {
-          args: {
-            first: 250
-          }
-        }, function (lineItems) {
-          lineItems.add("pageInfo", function (pageInfo) {
-            pageInfo.add("hasNextPage");
-            pageInfo.add("hasPreviousPage");
-          });
-          lineItems.add("edges", function (edges) {
-            edges.add("cursor");
-            edges.add("node", function (node) {
-              node.add("title");
-              node.add("variant", function (variant) {
-                variant.addFragment(spreads.VariantWithProductFragment);
-              });
-              node.add("quantity");
-              node.add("customAttributes", function (customAttributes) {
-                customAttributes.add("key");
-                customAttributes.add("value");
-              });
-            });
-          });
-        });
-      });
-      root.add("lineItems", {
-        args: {
-          first: 250
-        }
-      }, function (lineItems) {
-        lineItems.add("pageInfo", function (pageInfo) {
-          pageInfo.add("hasNextPage");
-          pageInfo.add("hasPreviousPage");
-        });
-        lineItems.add("edges", function (edges) {
-          edges.add("cursor");
-          edges.add("node", function (node) {
-            node.add("id");
-            node.add("title");
-            node.add("variant", function (variant) {
-              variant.addFragment(spreads.VariantWithProductFragment);
-            });
-            node.add("quantity");
-            node.add("customAttributes", function (customAttributes) {
-              customAttributes.add("key");
-              customAttributes.add("value");
-            });
-            node.add("discountAllocations", function (discountAllocations) {
-              discountAllocations.add("allocatedAmount", function (allocatedAmount) {
-                allocatedAmount.add("amount");
-                allocatedAmount.add("currencyCode");
-              });
-              discountAllocations.add("discountApplication", function (discountApplication) {
-                discountApplication.addFragment(spreads.DiscountApplicationFragment);
-              });
-            });
-          });
-        });
-      });
+      root.add("note");
     });
-    document.addMutation("checkoutDiscountCodeApplyV2", [variables.checkoutDiscountCodeApplyV2.discountCode, variables.checkoutDiscountCodeApplyV2.checkoutId], function (root) {
-      root.add("checkoutDiscountCodeApplyV2", {
+    spreads.CartUserErrorFragment = document.defineFragment("CartUserErrorFragment", "CartUserError", function (root) {
+      root.add("field");
+      root.add("message");
+      root.add("code");
+    });
+    spreads.CartWarningFragment = document.defineFragment("CartWarningFragment", "CartWarning", function (root) {
+      root.add("code");
+      root.add("message");
+    });
+    document.addMutation("CartLinesRemove", [variables.CartLinesRemove.cartId, variables.CartLinesRemove.lineIds], function (root) {
+      root.add("cartLinesRemove", {
         args: {
-          discountCode: variables.checkoutDiscountCodeApplyV2.discountCode,
-          checkoutId: variables.checkoutDiscountCodeApplyV2.checkoutId
+          cartId: variables.CartLinesRemove.cartId,
+          lineIds: variables.CartLinesRemove.lineIds
         }
-      }, function (checkoutDiscountCodeApplyV2) {
-        checkoutDiscountCodeApplyV2.add("userErrors", function (userErrors) {
-          userErrors.addFragment(spreads.UserErrorFragment);
+      }, function (cartLinesRemove) {
+        cartLinesRemove.add("cart", function (cart) {
+          cart.addFragment(spreads.CartFragment);
         });
-        checkoutDiscountCodeApplyV2.add("checkoutUserErrors", function (checkoutUserErrors) {
-          checkoutUserErrors.addFragment(spreads.CheckoutUserErrorFragment);
+        cartLinesRemove.add("userErrors", function (userErrors) {
+          userErrors.addFragment(spreads.CartUserErrorFragment);
         });
-        checkoutDiscountCodeApplyV2.add("checkout", function (checkout) {
-          checkout.addFragment(spreads.CheckoutFragment);
+        cartLinesRemove.add("warnings", function (warnings) {
+          warnings.addFragment(spreads.CartWarningFragment);
         });
       });
     });
@@ -7290,87 +8126,110 @@ var ShopifyBuy = (function () {
     var document = client.document();
     var spreads = {};
     var variables = {};
-    variables.checkoutDiscountCodeRemove = {};
-    variables.checkoutDiscountCodeRemove.checkoutId = client.variable("checkoutId", "ID!");
-    spreads.VariantFragment = document.defineFragment("VariantFragment", "ProductVariant", function (root) {
+    variables.CartLinesUpdate = {};
+    variables.CartLinesUpdate.cartId = client.variable("cartId", "ID!");
+    variables.CartLinesUpdate.lines = client.variable("lines", "[CartLineUpdateInput!]!");
+    spreads.CartLineFragment = document.defineFragment("CartLineFragment", "CartLine", function (root) {
       root.add("id");
-      root.add("title");
-      root.add("price", function (price) {
-        price.add("amount");
-        price.add("currencyCode");
-      });
-      root.add("price", {
-        alias: "priceV2"
-      }, function (price) {
-        price.add("amount");
-        price.add("currencyCode");
-      });
-      root.add("weight");
-      root.add("availableForSale", {
-        alias: "available"
-      });
-      root.add("sku");
-      root.add("compareAtPrice", function (compareAtPrice) {
-        compareAtPrice.add("amount");
-        compareAtPrice.add("currencyCode");
-      });
-      root.add("compareAtPrice", {
-        alias: "compareAtPriceV2"
-      }, function (compareAtPrice) {
-        compareAtPrice.add("amount");
-        compareAtPrice.add("currencyCode");
-      });
-      root.add("image", function (image) {
-        image.add("id");
-        image.add("url", {
-          alias: "src"
-        });
-        image.add("altText");
-        image.add("width");
-        image.add("height");
-      });
-      root.add("selectedOptions", function (selectedOptions) {
-        selectedOptions.add("name");
-        selectedOptions.add("value");
-      });
-      root.add("unitPrice", function (unitPrice) {
-        unitPrice.add("amount");
-        unitPrice.add("currencyCode");
-      });
-      root.add("unitPriceMeasurement", function (unitPriceMeasurement) {
-        unitPriceMeasurement.add("measuredType");
-        unitPriceMeasurement.add("quantityUnit");
-        unitPriceMeasurement.add("quantityValue");
-        unitPriceMeasurement.add("referenceUnit");
-        unitPriceMeasurement.add("referenceValue");
-      });
-    });
-    spreads.DiscountApplicationFragment = document.defineFragment("DiscountApplicationFragment", "DiscountApplication", function (root) {
-      root.add("targetSelection");
-      root.add("allocationMethod");
-      root.add("targetType");
-      root.add("value", function (value) {
-        value.addInlineFragmentOn("MoneyV2", function (MoneyV2) {
-          MoneyV2.add("amount");
-          MoneyV2.add("currencyCode");
-        });
-        value.addInlineFragmentOn("PricingPercentageValue", function (PricingPercentageValue) {
-          PricingPercentageValue.add("percentage");
+      root.add("merchandise", function (merchandise) {
+        merchandise.addInlineFragmentOn("ProductVariant", function (ProductVariant) {
+          ProductVariant.add("id");
+          ProductVariant.add("title");
+          ProductVariant.add("image", function (image) {
+            image.add("id");
+            image.add("url", {
+              alias: "src"
+            });
+            image.add("altText");
+            image.add("width");
+            image.add("height");
+          });
+          ProductVariant.add("product", function (product) {
+            product.add("id");
+            product.add("handle");
+            product.add("title");
+          });
+          ProductVariant.add("weight");
+          ProductVariant.add("availableForSale", {
+            alias: "available"
+          });
+          ProductVariant.add("sku");
+          ProductVariant.add("selectedOptions", function (selectedOptions) {
+            selectedOptions.add("name");
+            selectedOptions.add("value");
+          });
+          ProductVariant.add("compareAtPrice", function (compareAtPrice) {
+            compareAtPrice.add("amount");
+            compareAtPrice.add("currencyCode");
+          });
+          ProductVariant.add("price", function (price) {
+            price.add("amount");
+            price.add("currencyCode");
+          });
+          ProductVariant.add("unitPrice", function (unitPrice) {
+            unitPrice.add("amount");
+            unitPrice.add("currencyCode");
+          });
+          ProductVariant.add("unitPriceMeasurement", function (unitPriceMeasurement) {
+            unitPriceMeasurement.add("measuredType");
+            unitPriceMeasurement.add("quantityUnit");
+            unitPriceMeasurement.add("quantityValue");
+            unitPriceMeasurement.add("referenceUnit");
+            unitPriceMeasurement.add("referenceValue");
+          });
         });
       });
-      root.addInlineFragmentOn("ManualDiscountApplication", function (ManualDiscountApplication) {
-        ManualDiscountApplication.add("title");
-        ManualDiscountApplication.add("description");
+      root.add("quantity");
+      root.add("attributes", function (attributes) {
+        attributes.add("key");
+        attributes.add("value");
       });
-      root.addInlineFragmentOn("DiscountCodeApplication", function (DiscountCodeApplication) {
-        DiscountCodeApplication.add("code");
-        DiscountCodeApplication.add("applicable");
+      root.add("cost", function (cost) {
+        cost.add("totalAmount", function (totalAmount) {
+          totalAmount.add("amount");
+          totalAmount.add("currencyCode");
+        });
+        cost.add("subtotalAmount", function (subtotalAmount) {
+          subtotalAmount.add("amount");
+          subtotalAmount.add("currencyCode");
+        });
+        cost.add("amountPerQuantity", function (amountPerQuantity) {
+          amountPerQuantity.add("amount");
+          amountPerQuantity.add("currencyCode");
+        });
+        cost.add("compareAtAmountPerQuantity", function (compareAtAmountPerQuantity) {
+          compareAtAmountPerQuantity.add("amount");
+          compareAtAmountPerQuantity.add("currencyCode");
+        });
       });
-      root.addInlineFragmentOn("ScriptDiscountApplication", function (ScriptDiscountApplication) {
-        ScriptDiscountApplication.add("title");
-      });
-      root.addInlineFragmentOn("AutomaticDiscountApplication", function (AutomaticDiscountApplication) {
-        AutomaticDiscountApplication.add("title");
+      root.add("discountAllocations", function (discountAllocations) {
+        discountAllocations.add("discountedAmount", function (discountedAmount) {
+          discountedAmount.add("amount");
+          discountedAmount.add("currencyCode");
+        });
+        discountAllocations.add("discountApplication", function (discountApplication) {
+          discountApplication.add("targetType");
+          discountApplication.add("allocationMethod");
+          discountApplication.add("targetSelection");
+          discountApplication.add("value", function (value) {
+            value.addInlineFragmentOn("PricingPercentageValue", function (PricingPercentageValue) {
+              PricingPercentageValue.add("percentage");
+            });
+            value.addInlineFragmentOn("MoneyV2", function (MoneyV2) {
+              MoneyV2.add("amount");
+              MoneyV2.add("currencyCode");
+            });
+          });
+        });
+        discountAllocations.addInlineFragmentOn("CartCodeDiscountAllocation", function (CartCodeDiscountAllocation) {
+          CartCodeDiscountAllocation.add("code");
+        });
+        discountAllocations.addInlineFragmentOn("CartAutomaticDiscountAllocation", function (CartAutomaticDiscountAllocation) {
+          CartAutomaticDiscountAllocation.add("title");
+        });
+        discountAllocations.addInlineFragmentOn("CartCustomDiscountAllocation", function (CartCustomDiscountAllocation) {
+          CartCustomDiscountAllocation.add("title");
+        });
       });
     });
     spreads.AppliedGiftCardFragment = document.defineFragment("AppliedGiftCardFragment", "AppliedGiftCard", function (root) {
@@ -7401,273 +8260,225 @@ var ShopifyBuy = (function () {
       root.add("id");
       root.add("lastCharacters");
     });
-    spreads.VariantWithProductFragment = document.defineFragment("VariantWithProductFragment", "ProductVariant", function (root) {
-      root.addFragment(spreads.VariantFragment);
-      root.add("product", function (product) {
-        product.add("id");
-        product.add("handle");
-      });
-    });
-    spreads.UserErrorFragment = document.defineFragment("UserErrorFragment", "UserError", function (root) {
-      root.add("field");
-      root.add("message");
-    });
-    spreads.CheckoutUserErrorFragment = document.defineFragment("CheckoutUserErrorFragment", "CheckoutUserError", function (root) {
-      root.add("field");
-      root.add("message");
-      root.add("code");
-    });
-    spreads.MailingAddressFragment = document.defineFragment("MailingAddressFragment", "MailingAddress", function (root) {
+    spreads.CartFragment = document.defineFragment("CartFragment", "Cart", function (root) {
       root.add("id");
-      root.add("address1");
-      root.add("address2");
-      root.add("city");
-      root.add("company");
-      root.add("country");
-      root.add("firstName");
-      root.add("formatted");
-      root.add("lastName");
-      root.add("latitude");
-      root.add("longitude");
-      root.add("phone");
-      root.add("province");
-      root.add("zip");
-      root.add("name");
-      root.add("countryCodeV2", {
-        alias: "countryCode"
-      });
-      root.add("provinceCode");
-    });
-    spreads.CheckoutFragment = document.defineFragment("CheckoutFragment", "Checkout", function (root) {
-      root.add("id");
-      root.add("ready");
-      root.add("requiresShipping");
-      root.add("note");
-      root.add("paymentDue", function (paymentDue) {
-        paymentDue.add("amount");
-        paymentDue.add("currencyCode");
-      });
-      root.add("paymentDue", {
-        alias: "paymentDueV2"
-      }, function (paymentDue) {
-        paymentDue.add("amount");
-        paymentDue.add("currencyCode");
-      });
-      root.add("webUrl");
-      root.add("orderStatusUrl");
-      root.add("taxExempt");
-      root.add("taxesIncluded");
-      root.add("currencyCode");
-      root.add("totalTax", function (totalTax) {
-        totalTax.add("amount");
-        totalTax.add("currencyCode");
-      });
-      root.add("totalTax", {
-        alias: "totalTaxV2"
-      }, function (totalTax) {
-        totalTax.add("amount");
-        totalTax.add("currencyCode");
-      });
-      root.add("lineItemsSubtotalPrice", function (lineItemsSubtotalPrice) {
-        lineItemsSubtotalPrice.add("amount");
-        lineItemsSubtotalPrice.add("currencyCode");
-      });
-      root.add("subtotalPrice", function (subtotalPrice) {
-        subtotalPrice.add("amount");
-        subtotalPrice.add("currencyCode");
-      });
-      root.add("subtotalPrice", {
-        alias: "subtotalPriceV2"
-      }, function (subtotalPrice) {
-        subtotalPrice.add("amount");
-        subtotalPrice.add("currencyCode");
-      });
-      root.add("totalPrice", function (totalPrice) {
-        totalPrice.add("amount");
-        totalPrice.add("currencyCode");
-      });
-      root.add("totalPrice", {
-        alias: "totalPriceV2"
-      }, function (totalPrice) {
-        totalPrice.add("amount");
-        totalPrice.add("currencyCode");
-      });
-      root.add("completedAt");
       root.add("createdAt");
       root.add("updatedAt");
-      root.add("email");
-      root.add("discountApplications", {
+      root.add("lines", {
         args: {
           first: 10
         }
-      }, function (discountApplications) {
-        discountApplications.add("pageInfo", function (pageInfo) {
+      }, function (lines) {
+        lines.add("pageInfo", function (pageInfo) {
           pageInfo.add("hasNextPage");
           pageInfo.add("hasPreviousPage");
         });
-        discountApplications.add("edges", function (edges) {
+        lines.add("edges", function (edges) {
           edges.add("node", function (node) {
-            node.addFragment(spreads.DiscountApplicationFragment);
+            node.addFragment(spreads.CartLineFragment);
+          });
+        });
+      });
+      root.add("attributes", function (attributes) {
+        attributes.add("key");
+        attributes.add("value");
+      });
+      root.add("cost", function (cost) {
+        cost.add("checkoutChargeAmount", function (checkoutChargeAmount) {
+          checkoutChargeAmount.add("amount");
+          checkoutChargeAmount.add("currencyCode");
+        });
+        cost.add("totalAmount", function (totalAmount) {
+          totalAmount.add("amount");
+          totalAmount.add("currencyCode");
+        });
+        cost.add("subtotalAmount", function (subtotalAmount) {
+          subtotalAmount.add("amount");
+          subtotalAmount.add("currencyCode");
+        });
+        cost.add("totalTaxAmount", function (totalTaxAmount) {
+          totalTaxAmount.add("amount");
+          totalTaxAmount.add("currencyCode");
+        });
+        cost.add("totalDutyAmount", function (totalDutyAmount) {
+          totalDutyAmount.add("amount");
+          totalDutyAmount.add("currencyCode");
+        });
+      });
+      root.add("checkoutUrl");
+      root.add("discountCodes", function (discountCodes) {
+        discountCodes.add("applicable");
+        discountCodes.add("code");
+      });
+      root.add("discountAllocations", function (discountAllocations) {
+        discountAllocations.add("discountedAmount", function (discountedAmount) {
+          discountedAmount.add("amount");
+          discountedAmount.add("currencyCode");
+        });
+        discountAllocations.add("discountApplication", function (discountApplication) {
+          discountApplication.add("targetType");
+          discountApplication.add("allocationMethod");
+          discountApplication.add("targetSelection");
+          discountApplication.add("value", function (value) {
+            value.addInlineFragmentOn("PricingPercentageValue", function (PricingPercentageValue) {
+              PricingPercentageValue.add("percentage");
+            });
+            value.addInlineFragmentOn("MoneyV2", function (MoneyV2) {
+              MoneyV2.add("amount");
+              MoneyV2.add("currencyCode");
+            });
+          });
+        });
+        discountAllocations.addInlineFragmentOn("CartCodeDiscountAllocation", function (CartCodeDiscountAllocation) {
+          CartCodeDiscountAllocation.add("code");
+        });
+        discountAllocations.addInlineFragmentOn("CartAutomaticDiscountAllocation", function (CartAutomaticDiscountAllocation) {
+          CartAutomaticDiscountAllocation.add("title");
+        });
+        discountAllocations.addInlineFragmentOn("CartCustomDiscountAllocation", function (CartCustomDiscountAllocation) {
+          CartCustomDiscountAllocation.add("title");
+        });
+      });
+      root.add("buyerIdentity", function (buyerIdentity) {
+        buyerIdentity.add("countryCode");
+        buyerIdentity.add("preferences", function (preferences) {
+          preferences.add("delivery", function (delivery) {
+            delivery.add("coordinates", function (coordinates) {
+              coordinates.add("latitude");
+              coordinates.add("longitude");
+              coordinates.add("countryCode");
+            });
+            delivery.add("deliveryMethod");
+            delivery.add("pickupHandle");
+          });
+          preferences.add("wallet");
+        });
+        buyerIdentity.add("email");
+        buyerIdentity.add("phone");
+        buyerIdentity.add("customer", function (customer) {
+          customer.add("email");
+        });
+        buyerIdentity.add("deliveryAddressPreferences", function (deliveryAddressPreferences) {
+          deliveryAddressPreferences.addInlineFragmentOn("MailingAddress", function (MailingAddress) {
+            MailingAddress.add("address1");
+            MailingAddress.add("address2");
+            MailingAddress.add("city");
+            MailingAddress.add("company");
+            MailingAddress.add("country");
+            MailingAddress.add("countryCodeV2");
+            MailingAddress.add("firstName");
+            MailingAddress.add("formatted");
+            MailingAddress.add("formattedArea");
+            MailingAddress.add("lastName");
+            MailingAddress.add("latitude");
+            MailingAddress.add("longitude");
+            MailingAddress.add("name");
+            MailingAddress.add("phone");
+            MailingAddress.add("province");
+            MailingAddress.add("provinceCode");
+            MailingAddress.add("zip");
+          });
+        });
+      });
+      root.add("deliveryGroups", {
+        args: {
+          first: 10
+        }
+      }, function (deliveryGroups) {
+        deliveryGroups.add("pageInfo", function (pageInfo) {
+          pageInfo.add("hasNextPage");
+          pageInfo.add("hasPreviousPage");
+        });
+        deliveryGroups.add("edges", function (edges) {
+          edges.add("node", function (node) {
+            node.add("id");
+            node.add("deliveryAddress", function (deliveryAddress) {
+              deliveryAddress.add("address2");
+              deliveryAddress.add("address1");
+              deliveryAddress.add("city");
+              deliveryAddress.add("company");
+              deliveryAddress.add("country");
+              deliveryAddress.add("countryCodeV2");
+              deliveryAddress.add("firstName");
+              deliveryAddress.add("formatted");
+              deliveryAddress.add("formattedArea");
+              deliveryAddress.add("lastName");
+              deliveryAddress.add("latitude");
+              deliveryAddress.add("longitude");
+              deliveryAddress.add("name");
+              deliveryAddress.add("phone");
+              deliveryAddress.add("province");
+              deliveryAddress.add("provinceCode");
+            });
+            node.add("deliveryOptions", function (deliveryOptions) {
+              deliveryOptions.add("code");
+              deliveryOptions.add("deliveryMethodType");
+              deliveryOptions.add("description");
+              deliveryOptions.add("estimatedCost", function (estimatedCost) {
+                estimatedCost.add("amount");
+                estimatedCost.add("currencyCode");
+              });
+              deliveryOptions.add("handle");
+              deliveryOptions.add("title");
+            });
+            node.add("selectedDeliveryOption", function (selectedDeliveryOption) {
+              selectedDeliveryOption.add("code");
+              selectedDeliveryOption.add("deliveryMethodType");
+              selectedDeliveryOption.add("description");
+              selectedDeliveryOption.add("estimatedCost", function (estimatedCost) {
+                estimatedCost.add("amount");
+                estimatedCost.add("currencyCode");
+              });
+              selectedDeliveryOption.add("handle");
+              selectedDeliveryOption.add("title");
+            });
+            node.add("cartLines", {
+              args: {
+                first: 10
+              }
+            }, function (cartLines) {
+              cartLines.add("pageInfo", function (pageInfo) {
+                pageInfo.add("hasNextPage");
+                pageInfo.add("hasPreviousPage");
+              });
+              cartLines.add("edges", function (edges) {
+                edges.add("node", function (node) {
+                  node.add("id");
+                });
+              });
+            });
           });
         });
       });
       root.add("appliedGiftCards", function (appliedGiftCards) {
         appliedGiftCards.addFragment(spreads.AppliedGiftCardFragment);
       });
-      root.add("shippingAddress", function (shippingAddress) {
-        shippingAddress.addFragment(spreads.MailingAddressFragment);
-      });
-      root.add("shippingLine", function (shippingLine) {
-        shippingLine.add("handle");
-        shippingLine.add("price", function (price) {
-          price.add("amount");
-          price.add("currencyCode");
-        });
-        shippingLine.add("price", {
-          alias: "priceV2"
-        }, function (price) {
-          price.add("amount");
-          price.add("currencyCode");
-        });
-        shippingLine.add("title");
-      });
-      root.add("customAttributes", function (customAttributes) {
-        customAttributes.add("key");
-        customAttributes.add("value");
-      });
-      root.add("order", function (order) {
-        order.add("id");
-        order.add("processedAt");
-        order.add("orderNumber");
-        order.add("subtotalPrice", function (subtotalPrice) {
-          subtotalPrice.add("amount");
-          subtotalPrice.add("currencyCode");
-        });
-        order.add("subtotalPrice", {
-          alias: "subtotalPriceV2"
-        }, function (subtotalPrice) {
-          subtotalPrice.add("amount");
-          subtotalPrice.add("currencyCode");
-        });
-        order.add("totalShippingPrice", function (totalShippingPrice) {
-          totalShippingPrice.add("amount");
-          totalShippingPrice.add("currencyCode");
-        });
-        order.add("totalShippingPrice", {
-          alias: "totalShippingPriceV2"
-        }, function (totalShippingPrice) {
-          totalShippingPrice.add("amount");
-          totalShippingPrice.add("currencyCode");
-        });
-        order.add("totalTax", function (totalTax) {
-          totalTax.add("amount");
-          totalTax.add("currencyCode");
-        });
-        order.add("totalTax", {
-          alias: "totalTaxV2"
-        }, function (totalTax) {
-          totalTax.add("amount");
-          totalTax.add("currencyCode");
-        });
-        order.add("totalPrice", function (totalPrice) {
-          totalPrice.add("amount");
-          totalPrice.add("currencyCode");
-        });
-        order.add("totalPrice", {
-          alias: "totalPriceV2"
-        }, function (totalPrice) {
-          totalPrice.add("amount");
-          totalPrice.add("currencyCode");
-        });
-        order.add("currencyCode");
-        order.add("totalRefunded", function (totalRefunded) {
-          totalRefunded.add("amount");
-          totalRefunded.add("currencyCode");
-        });
-        order.add("totalRefunded", {
-          alias: "totalRefundedV2"
-        }, function (totalRefunded) {
-          totalRefunded.add("amount");
-          totalRefunded.add("currencyCode");
-        });
-        order.add("customerUrl");
-        order.add("shippingAddress", function (shippingAddress) {
-          shippingAddress.addFragment(spreads.MailingAddressFragment);
-        });
-        order.add("lineItems", {
-          args: {
-            first: 250
-          }
-        }, function (lineItems) {
-          lineItems.add("pageInfo", function (pageInfo) {
-            pageInfo.add("hasNextPage");
-            pageInfo.add("hasPreviousPage");
-          });
-          lineItems.add("edges", function (edges) {
-            edges.add("cursor");
-            edges.add("node", function (node) {
-              node.add("title");
-              node.add("variant", function (variant) {
-                variant.addFragment(spreads.VariantWithProductFragment);
-              });
-              node.add("quantity");
-              node.add("customAttributes", function (customAttributes) {
-                customAttributes.add("key");
-                customAttributes.add("value");
-              });
-            });
-          });
-        });
-      });
-      root.add("lineItems", {
-        args: {
-          first: 250
-        }
-      }, function (lineItems) {
-        lineItems.add("pageInfo", function (pageInfo) {
-          pageInfo.add("hasNextPage");
-          pageInfo.add("hasPreviousPage");
-        });
-        lineItems.add("edges", function (edges) {
-          edges.add("cursor");
-          edges.add("node", function (node) {
-            node.add("id");
-            node.add("title");
-            node.add("variant", function (variant) {
-              variant.addFragment(spreads.VariantWithProductFragment);
-            });
-            node.add("quantity");
-            node.add("customAttributes", function (customAttributes) {
-              customAttributes.add("key");
-              customAttributes.add("value");
-            });
-            node.add("discountAllocations", function (discountAllocations) {
-              discountAllocations.add("allocatedAmount", function (allocatedAmount) {
-                allocatedAmount.add("amount");
-                allocatedAmount.add("currencyCode");
-              });
-              discountAllocations.add("discountApplication", function (discountApplication) {
-                discountApplication.addFragment(spreads.DiscountApplicationFragment);
-              });
-            });
-          });
-        });
-      });
+      root.add("note");
     });
-    document.addMutation("checkoutDiscountCodeRemove", [variables.checkoutDiscountCodeRemove.checkoutId], function (root) {
-      root.add("checkoutDiscountCodeRemove", {
+    spreads.CartUserErrorFragment = document.defineFragment("CartUserErrorFragment", "CartUserError", function (root) {
+      root.add("field");
+      root.add("message");
+      root.add("code");
+    });
+    spreads.CartWarningFragment = document.defineFragment("CartWarningFragment", "CartWarning", function (root) {
+      root.add("code");
+      root.add("message");
+    });
+    document.addMutation("CartLinesUpdate", [variables.CartLinesUpdate.cartId, variables.CartLinesUpdate.lines], function (root) {
+      root.add("cartLinesUpdate", {
         args: {
-          checkoutId: variables.checkoutDiscountCodeRemove.checkoutId
+          cartId: variables.CartLinesUpdate.cartId,
+          lines: variables.CartLinesUpdate.lines
         }
-      }, function (checkoutDiscountCodeRemove) {
-        checkoutDiscountCodeRemove.add("userErrors", function (userErrors) {
-          userErrors.addFragment(spreads.UserErrorFragment);
+      }, function (cartLinesUpdate) {
+        cartLinesUpdate.add("cart", function (cart) {
+          cart.addFragment(spreads.CartFragment);
         });
-        checkoutDiscountCodeRemove.add("checkoutUserErrors", function (checkoutUserErrors) {
-          checkoutUserErrors.addFragment(spreads.CheckoutUserErrorFragment);
+        cartLinesUpdate.add("userErrors", function (userErrors) {
+          userErrors.addFragment(spreads.CartUserErrorFragment);
         });
-        checkoutDiscountCodeRemove.add("checkout", function (checkout) {
-          checkout.addFragment(spreads.CheckoutFragment);
+        cartLinesUpdate.add("warnings", function (warnings) {
+          warnings.addFragment(spreads.CartWarningFragment);
         });
       });
     });
@@ -7678,88 +8489,110 @@ var ShopifyBuy = (function () {
     var document = client.document();
     var spreads = {};
     var variables = {};
-    variables.checkoutGiftCardsAppend = {};
-    variables.checkoutGiftCardsAppend.giftCardCodes = client.variable("giftCardCodes", "[String!]!");
-    variables.checkoutGiftCardsAppend.checkoutId = client.variable("checkoutId", "ID!");
-    spreads.VariantFragment = document.defineFragment("VariantFragment", "ProductVariant", function (root) {
+    variables.CartNoteUpdate = {};
+    variables.CartNoteUpdate.cartId = client.variable("cartId", "ID!");
+    variables.CartNoteUpdate.note = client.variable("note", "String!");
+    spreads.CartLineFragment = document.defineFragment("CartLineFragment", "CartLine", function (root) {
       root.add("id");
-      root.add("title");
-      root.add("price", function (price) {
-        price.add("amount");
-        price.add("currencyCode");
-      });
-      root.add("price", {
-        alias: "priceV2"
-      }, function (price) {
-        price.add("amount");
-        price.add("currencyCode");
-      });
-      root.add("weight");
-      root.add("availableForSale", {
-        alias: "available"
-      });
-      root.add("sku");
-      root.add("compareAtPrice", function (compareAtPrice) {
-        compareAtPrice.add("amount");
-        compareAtPrice.add("currencyCode");
-      });
-      root.add("compareAtPrice", {
-        alias: "compareAtPriceV2"
-      }, function (compareAtPrice) {
-        compareAtPrice.add("amount");
-        compareAtPrice.add("currencyCode");
-      });
-      root.add("image", function (image) {
-        image.add("id");
-        image.add("url", {
-          alias: "src"
-        });
-        image.add("altText");
-        image.add("width");
-        image.add("height");
-      });
-      root.add("selectedOptions", function (selectedOptions) {
-        selectedOptions.add("name");
-        selectedOptions.add("value");
-      });
-      root.add("unitPrice", function (unitPrice) {
-        unitPrice.add("amount");
-        unitPrice.add("currencyCode");
-      });
-      root.add("unitPriceMeasurement", function (unitPriceMeasurement) {
-        unitPriceMeasurement.add("measuredType");
-        unitPriceMeasurement.add("quantityUnit");
-        unitPriceMeasurement.add("quantityValue");
-        unitPriceMeasurement.add("referenceUnit");
-        unitPriceMeasurement.add("referenceValue");
-      });
-    });
-    spreads.DiscountApplicationFragment = document.defineFragment("DiscountApplicationFragment", "DiscountApplication", function (root) {
-      root.add("targetSelection");
-      root.add("allocationMethod");
-      root.add("targetType");
-      root.add("value", function (value) {
-        value.addInlineFragmentOn("MoneyV2", function (MoneyV2) {
-          MoneyV2.add("amount");
-          MoneyV2.add("currencyCode");
-        });
-        value.addInlineFragmentOn("PricingPercentageValue", function (PricingPercentageValue) {
-          PricingPercentageValue.add("percentage");
+      root.add("merchandise", function (merchandise) {
+        merchandise.addInlineFragmentOn("ProductVariant", function (ProductVariant) {
+          ProductVariant.add("id");
+          ProductVariant.add("title");
+          ProductVariant.add("image", function (image) {
+            image.add("id");
+            image.add("url", {
+              alias: "src"
+            });
+            image.add("altText");
+            image.add("width");
+            image.add("height");
+          });
+          ProductVariant.add("product", function (product) {
+            product.add("id");
+            product.add("handle");
+            product.add("title");
+          });
+          ProductVariant.add("weight");
+          ProductVariant.add("availableForSale", {
+            alias: "available"
+          });
+          ProductVariant.add("sku");
+          ProductVariant.add("selectedOptions", function (selectedOptions) {
+            selectedOptions.add("name");
+            selectedOptions.add("value");
+          });
+          ProductVariant.add("compareAtPrice", function (compareAtPrice) {
+            compareAtPrice.add("amount");
+            compareAtPrice.add("currencyCode");
+          });
+          ProductVariant.add("price", function (price) {
+            price.add("amount");
+            price.add("currencyCode");
+          });
+          ProductVariant.add("unitPrice", function (unitPrice) {
+            unitPrice.add("amount");
+            unitPrice.add("currencyCode");
+          });
+          ProductVariant.add("unitPriceMeasurement", function (unitPriceMeasurement) {
+            unitPriceMeasurement.add("measuredType");
+            unitPriceMeasurement.add("quantityUnit");
+            unitPriceMeasurement.add("quantityValue");
+            unitPriceMeasurement.add("referenceUnit");
+            unitPriceMeasurement.add("referenceValue");
+          });
         });
       });
-      root.addInlineFragmentOn("ManualDiscountApplication", function (ManualDiscountApplication) {
-        ManualDiscountApplication.add("title");
-        ManualDiscountApplication.add("description");
+      root.add("quantity");
+      root.add("attributes", function (attributes) {
+        attributes.add("key");
+        attributes.add("value");
       });
-      root.addInlineFragmentOn("DiscountCodeApplication", function (DiscountCodeApplication) {
-        DiscountCodeApplication.add("code");
-        DiscountCodeApplication.add("applicable");
+      root.add("cost", function (cost) {
+        cost.add("totalAmount", function (totalAmount) {
+          totalAmount.add("amount");
+          totalAmount.add("currencyCode");
+        });
+        cost.add("subtotalAmount", function (subtotalAmount) {
+          subtotalAmount.add("amount");
+          subtotalAmount.add("currencyCode");
+        });
+        cost.add("amountPerQuantity", function (amountPerQuantity) {
+          amountPerQuantity.add("amount");
+          amountPerQuantity.add("currencyCode");
+        });
+        cost.add("compareAtAmountPerQuantity", function (compareAtAmountPerQuantity) {
+          compareAtAmountPerQuantity.add("amount");
+          compareAtAmountPerQuantity.add("currencyCode");
+        });
       });
-      root.addInlineFragmentOn("ScriptDiscountApplication", function (ScriptDiscountApplication) {
-        ScriptDiscountApplication.add("title");
-      });
-      root.addInlineFragmentOn("AutomaticDiscountApplication", function (AutomaticDiscountApplication) {
-        AutomaticDiscountApplication.add("title");
+      root.add("discountAllocations", function (discountAllocations) {
+        discountAllocations.add("discountedAmount", function (discountedAmount) {
+          discountedAmount.add("amount");
+          discountedAmount.add("currencyCode");
+        });
+        discountAllocations.add("discountApplication", function (discountApplication) {
+          discountApplication.add("targetType");
+          discountApplication.add("allocationMethod");
+          discountApplication.add("targetSelection");
+          discountApplication.add("value", function (value) {
+            value.addInlineFragmentOn("PricingPercentageValue", function (PricingPercentageValue) {
+              PricingPercentageValue.add("percentage");
+            });
+            value.addInlineFragmentOn("MoneyV2", function (MoneyV2) {
+              MoneyV2.add("amount");
+              MoneyV2.add("currencyCode");
+            });
+          });
+        });
+        discountAllocations.addInlineFragmentOn("CartCodeDiscountAllocation", function (CartCodeDiscountAllocation) {
+          CartCodeDiscountAllocation.add("code");
+        });
+        discountAllocations.addInlineFragmentOn("CartAutomaticDiscountAllocation", function (CartAutomaticDiscountAllocation) {
+          CartAutomaticDiscountAllocation.add("title");
+        });
+        discountAllocations.addInlineFragmentOn("CartCustomDiscountAllocation", function (CartCustomDiscountAllocation) {
+          CartCustomDiscountAllocation.add("title");
+        });
       });
     });
     spreads.AppliedGiftCardFragment = document.defineFragment("AppliedGiftCardFragment", "AppliedGiftCard", function (root) {
@@ -7790,274 +8623,215 @@ var ShopifyBuy = (function () {
       root.add("id");
       root.add("lastCharacters");
     });
-    spreads.VariantWithProductFragment = document.defineFragment("VariantWithProductFragment", "ProductVariant", function (root) {
-      root.addFragment(spreads.VariantFragment);
-      root.add("product", function (product) {
-        product.add("id");
-        product.add("handle");
-      });
-    });
-    spreads.UserErrorFragment = document.defineFragment("UserErrorFragment", "UserError", function (root) {
-      root.add("field");
-      root.add("message");
-    });
-    spreads.CheckoutUserErrorFragment = document.defineFragment("CheckoutUserErrorFragment", "CheckoutUserError", function (root) {
-      root.add("field");
-      root.add("message");
-      root.add("code");
-    });
-    spreads.MailingAddressFragment = document.defineFragment("MailingAddressFragment", "MailingAddress", function (root) {
+    spreads.CartFragment = document.defineFragment("CartFragment", "Cart", function (root) {
       root.add("id");
-      root.add("address1");
-      root.add("address2");
-      root.add("city");
-      root.add("company");
-      root.add("country");
-      root.add("firstName");
-      root.add("formatted");
-      root.add("lastName");
-      root.add("latitude");
-      root.add("longitude");
-      root.add("phone");
-      root.add("province");
-      root.add("zip");
-      root.add("name");
-      root.add("countryCodeV2", {
-        alias: "countryCode"
-      });
-      root.add("provinceCode");
-    });
-    spreads.CheckoutFragment = document.defineFragment("CheckoutFragment", "Checkout", function (root) {
-      root.add("id");
-      root.add("ready");
-      root.add("requiresShipping");
-      root.add("note");
-      root.add("paymentDue", function (paymentDue) {
-        paymentDue.add("amount");
-        paymentDue.add("currencyCode");
-      });
-      root.add("paymentDue", {
-        alias: "paymentDueV2"
-      }, function (paymentDue) {
-        paymentDue.add("amount");
-        paymentDue.add("currencyCode");
-      });
-      root.add("webUrl");
-      root.add("orderStatusUrl");
-      root.add("taxExempt");
-      root.add("taxesIncluded");
-      root.add("currencyCode");
-      root.add("totalTax", function (totalTax) {
-        totalTax.add("amount");
-        totalTax.add("currencyCode");
-      });
-      root.add("totalTax", {
-        alias: "totalTaxV2"
-      }, function (totalTax) {
-        totalTax.add("amount");
-        totalTax.add("currencyCode");
-      });
-      root.add("lineItemsSubtotalPrice", function (lineItemsSubtotalPrice) {
-        lineItemsSubtotalPrice.add("amount");
-        lineItemsSubtotalPrice.add("currencyCode");
-      });
-      root.add("subtotalPrice", function (subtotalPrice) {
-        subtotalPrice.add("amount");
-        subtotalPrice.add("currencyCode");
-      });
-      root.add("subtotalPrice", {
-        alias: "subtotalPriceV2"
-      }, function (subtotalPrice) {
-        subtotalPrice.add("amount");
-        subtotalPrice.add("currencyCode");
-      });
-      root.add("totalPrice", function (totalPrice) {
-        totalPrice.add("amount");
-        totalPrice.add("currencyCode");
-      });
-      root.add("totalPrice", {
-        alias: "totalPriceV2"
-      }, function (totalPrice) {
-        totalPrice.add("amount");
-        totalPrice.add("currencyCode");
-      });
-      root.add("completedAt");
       root.add("createdAt");
       root.add("updatedAt");
-      root.add("email");
-      root.add("discountApplications", {
+      root.add("lines", {
         args: {
           first: 10
         }
-      }, function (discountApplications) {
-        discountApplications.add("pageInfo", function (pageInfo) {
+      }, function (lines) {
+        lines.add("pageInfo", function (pageInfo) {
           pageInfo.add("hasNextPage");
           pageInfo.add("hasPreviousPage");
         });
-        discountApplications.add("edges", function (edges) {
+        lines.add("edges", function (edges) {
           edges.add("node", function (node) {
-            node.addFragment(spreads.DiscountApplicationFragment);
+            node.addFragment(spreads.CartLineFragment);
+          });
+        });
+      });
+      root.add("attributes", function (attributes) {
+        attributes.add("key");
+        attributes.add("value");
+      });
+      root.add("cost", function (cost) {
+        cost.add("checkoutChargeAmount", function (checkoutChargeAmount) {
+          checkoutChargeAmount.add("amount");
+          checkoutChargeAmount.add("currencyCode");
+        });
+        cost.add("totalAmount", function (totalAmount) {
+          totalAmount.add("amount");
+          totalAmount.add("currencyCode");
+        });
+        cost.add("subtotalAmount", function (subtotalAmount) {
+          subtotalAmount.add("amount");
+          subtotalAmount.add("currencyCode");
+        });
+        cost.add("totalTaxAmount", function (totalTaxAmount) {
+          totalTaxAmount.add("amount");
+          totalTaxAmount.add("currencyCode");
+        });
+        cost.add("totalDutyAmount", function (totalDutyAmount) {
+          totalDutyAmount.add("amount");
+          totalDutyAmount.add("currencyCode");
+        });
+      });
+      root.add("checkoutUrl");
+      root.add("discountCodes", function (discountCodes) {
+        discountCodes.add("applicable");
+        discountCodes.add("code");
+      });
+      root.add("discountAllocations", function (discountAllocations) {
+        discountAllocations.add("discountedAmount", function (discountedAmount) {
+          discountedAmount.add("amount");
+          discountedAmount.add("currencyCode");
+        });
+        discountAllocations.add("discountApplication", function (discountApplication) {
+          discountApplication.add("targetType");
+          discountApplication.add("allocationMethod");
+          discountApplication.add("targetSelection");
+          discountApplication.add("value", function (value) {
+            value.addInlineFragmentOn("PricingPercentageValue", function (PricingPercentageValue) {
+              PricingPercentageValue.add("percentage");
+            });
+            value.addInlineFragmentOn("MoneyV2", function (MoneyV2) {
+              MoneyV2.add("amount");
+              MoneyV2.add("currencyCode");
+            });
+          });
+        });
+        discountAllocations.addInlineFragmentOn("CartCodeDiscountAllocation", function (CartCodeDiscountAllocation) {
+          CartCodeDiscountAllocation.add("code");
+        });
+        discountAllocations.addInlineFragmentOn("CartAutomaticDiscountAllocation", function (CartAutomaticDiscountAllocation) {
+          CartAutomaticDiscountAllocation.add("title");
+        });
+        discountAllocations.addInlineFragmentOn("CartCustomDiscountAllocation", function (CartCustomDiscountAllocation) {
+          CartCustomDiscountAllocation.add("title");
+        });
+      });
+      root.add("buyerIdentity", function (buyerIdentity) {
+        buyerIdentity.add("countryCode");
+        buyerIdentity.add("preferences", function (preferences) {
+          preferences.add("delivery", function (delivery) {
+            delivery.add("coordinates", function (coordinates) {
+              coordinates.add("latitude");
+              coordinates.add("longitude");
+              coordinates.add("countryCode");
+            });
+            delivery.add("deliveryMethod");
+            delivery.add("pickupHandle");
+          });
+          preferences.add("wallet");
+        });
+        buyerIdentity.add("email");
+        buyerIdentity.add("phone");
+        buyerIdentity.add("customer", function (customer) {
+          customer.add("email");
+        });
+        buyerIdentity.add("deliveryAddressPreferences", function (deliveryAddressPreferences) {
+          deliveryAddressPreferences.addInlineFragmentOn("MailingAddress", function (MailingAddress) {
+            MailingAddress.add("address1");
+            MailingAddress.add("address2");
+            MailingAddress.add("city");
+            MailingAddress.add("company");
+            MailingAddress.add("country");
+            MailingAddress.add("countryCodeV2");
+            MailingAddress.add("firstName");
+            MailingAddress.add("formatted");
+            MailingAddress.add("formattedArea");
+            MailingAddress.add("lastName");
+            MailingAddress.add("latitude");
+            MailingAddress.add("longitude");
+            MailingAddress.add("name");
+            MailingAddress.add("phone");
+            MailingAddress.add("province");
+            MailingAddress.add("provinceCode");
+            MailingAddress.add("zip");
+          });
+        });
+      });
+      root.add("deliveryGroups", {
+        args: {
+          first: 10
+        }
+      }, function (deliveryGroups) {
+        deliveryGroups.add("pageInfo", function (pageInfo) {
+          pageInfo.add("hasNextPage");
+          pageInfo.add("hasPreviousPage");
+        });
+        deliveryGroups.add("edges", function (edges) {
+          edges.add("node", function (node) {
+            node.add("id");
+            node.add("deliveryAddress", function (deliveryAddress) {
+              deliveryAddress.add("address2");
+              deliveryAddress.add("address1");
+              deliveryAddress.add("city");
+              deliveryAddress.add("company");
+              deliveryAddress.add("country");
+              deliveryAddress.add("countryCodeV2");
+              deliveryAddress.add("firstName");
+              deliveryAddress.add("formatted");
+              deliveryAddress.add("formattedArea");
+              deliveryAddress.add("lastName");
+              deliveryAddress.add("latitude");
+              deliveryAddress.add("longitude");
+              deliveryAddress.add("name");
+              deliveryAddress.add("phone");
+              deliveryAddress.add("province");
+              deliveryAddress.add("provinceCode");
+            });
+            node.add("deliveryOptions", function (deliveryOptions) {
+              deliveryOptions.add("code");
+              deliveryOptions.add("deliveryMethodType");
+              deliveryOptions.add("description");
+              deliveryOptions.add("estimatedCost", function (estimatedCost) {
+                estimatedCost.add("amount");
+                estimatedCost.add("currencyCode");
+              });
+              deliveryOptions.add("handle");
+              deliveryOptions.add("title");
+            });
+            node.add("selectedDeliveryOption", function (selectedDeliveryOption) {
+              selectedDeliveryOption.add("code");
+              selectedDeliveryOption.add("deliveryMethodType");
+              selectedDeliveryOption.add("description");
+              selectedDeliveryOption.add("estimatedCost", function (estimatedCost) {
+                estimatedCost.add("amount");
+                estimatedCost.add("currencyCode");
+              });
+              selectedDeliveryOption.add("handle");
+              selectedDeliveryOption.add("title");
+            });
+            node.add("cartLines", {
+              args: {
+                first: 10
+              }
+            }, function (cartLines) {
+              cartLines.add("pageInfo", function (pageInfo) {
+                pageInfo.add("hasNextPage");
+                pageInfo.add("hasPreviousPage");
+              });
+              cartLines.add("edges", function (edges) {
+                edges.add("node", function (node) {
+                  node.add("id");
+                });
+              });
+            });
           });
         });
       });
       root.add("appliedGiftCards", function (appliedGiftCards) {
         appliedGiftCards.addFragment(spreads.AppliedGiftCardFragment);
       });
-      root.add("shippingAddress", function (shippingAddress) {
-        shippingAddress.addFragment(spreads.MailingAddressFragment);
-      });
-      root.add("shippingLine", function (shippingLine) {
-        shippingLine.add("handle");
-        shippingLine.add("price", function (price) {
-          price.add("amount");
-          price.add("currencyCode");
-        });
-        shippingLine.add("price", {
-          alias: "priceV2"
-        }, function (price) {
-          price.add("amount");
-          price.add("currencyCode");
-        });
-        shippingLine.add("title");
-      });
-      root.add("customAttributes", function (customAttributes) {
-        customAttributes.add("key");
-        customAttributes.add("value");
-      });
-      root.add("order", function (order) {
-        order.add("id");
-        order.add("processedAt");
-        order.add("orderNumber");
-        order.add("subtotalPrice", function (subtotalPrice) {
-          subtotalPrice.add("amount");
-          subtotalPrice.add("currencyCode");
-        });
-        order.add("subtotalPrice", {
-          alias: "subtotalPriceV2"
-        }, function (subtotalPrice) {
-          subtotalPrice.add("amount");
-          subtotalPrice.add("currencyCode");
-        });
-        order.add("totalShippingPrice", function (totalShippingPrice) {
-          totalShippingPrice.add("amount");
-          totalShippingPrice.add("currencyCode");
-        });
-        order.add("totalShippingPrice", {
-          alias: "totalShippingPriceV2"
-        }, function (totalShippingPrice) {
-          totalShippingPrice.add("amount");
-          totalShippingPrice.add("currencyCode");
-        });
-        order.add("totalTax", function (totalTax) {
-          totalTax.add("amount");
-          totalTax.add("currencyCode");
-        });
-        order.add("totalTax", {
-          alias: "totalTaxV2"
-        }, function (totalTax) {
-          totalTax.add("amount");
-          totalTax.add("currencyCode");
-        });
-        order.add("totalPrice", function (totalPrice) {
-          totalPrice.add("amount");
-          totalPrice.add("currencyCode");
-        });
-        order.add("totalPrice", {
-          alias: "totalPriceV2"
-        }, function (totalPrice) {
-          totalPrice.add("amount");
-          totalPrice.add("currencyCode");
-        });
-        order.add("currencyCode");
-        order.add("totalRefunded", function (totalRefunded) {
-          totalRefunded.add("amount");
-          totalRefunded.add("currencyCode");
-        });
-        order.add("totalRefunded", {
-          alias: "totalRefundedV2"
-        }, function (totalRefunded) {
-          totalRefunded.add("amount");
-          totalRefunded.add("currencyCode");
-        });
-        order.add("customerUrl");
-        order.add("shippingAddress", function (shippingAddress) {
-          shippingAddress.addFragment(spreads.MailingAddressFragment);
-        });
-        order.add("lineItems", {
-          args: {
-            first: 250
-          }
-        }, function (lineItems) {
-          lineItems.add("pageInfo", function (pageInfo) {
-            pageInfo.add("hasNextPage");
-            pageInfo.add("hasPreviousPage");
-          });
-          lineItems.add("edges", function (edges) {
-            edges.add("cursor");
-            edges.add("node", function (node) {
-              node.add("title");
-              node.add("variant", function (variant) {
-                variant.addFragment(spreads.VariantWithProductFragment);
-              });
-              node.add("quantity");
-              node.add("customAttributes", function (customAttributes) {
-                customAttributes.add("key");
-                customAttributes.add("value");
-              });
-            });
-          });
-        });
-      });
-      root.add("lineItems", {
-        args: {
-          first: 250
-        }
-      }, function (lineItems) {
-        lineItems.add("pageInfo", function (pageInfo) {
-          pageInfo.add("hasNextPage");
-          pageInfo.add("hasPreviousPage");
-        });
-        lineItems.add("edges", function (edges) {
-          edges.add("cursor");
-          edges.add("node", function (node) {
-            node.add("id");
-            node.add("title");
-            node.add("variant", function (variant) {
-              variant.addFragment(spreads.VariantWithProductFragment);
-            });
-            node.add("quantity");
-            node.add("customAttributes", function (customAttributes) {
-              customAttributes.add("key");
-              customAttributes.add("value");
-            });
-            node.add("discountAllocations", function (discountAllocations) {
-              discountAllocations.add("allocatedAmount", function (allocatedAmount) {
-                allocatedAmount.add("amount");
-                allocatedAmount.add("currencyCode");
-              });
-              discountAllocations.add("discountApplication", function (discountApplication) {
-                discountApplication.addFragment(spreads.DiscountApplicationFragment);
-              });
-            });
-          });
-        });
-      });
+      root.add("note");
     });
-    document.addMutation("checkoutGiftCardsAppend", [variables.checkoutGiftCardsAppend.giftCardCodes, variables.checkoutGiftCardsAppend.checkoutId], function (root) {
-      root.add("checkoutGiftCardsAppend", {
+    document.addMutation("CartNoteUpdate", [variables.CartNoteUpdate.cartId, variables.CartNoteUpdate.note], function (root) {
+      root.add("cartNoteUpdate", {
         args: {
-          giftCardCodes: variables.checkoutGiftCardsAppend.giftCardCodes,
-          checkoutId: variables.checkoutGiftCardsAppend.checkoutId
+          cartId: variables.CartNoteUpdate.cartId,
+          note: variables.CartNoteUpdate.note
         }
-      }, function (checkoutGiftCardsAppend) {
-        checkoutGiftCardsAppend.add("userErrors", function (userErrors) {
-          userErrors.addFragment(spreads.UserErrorFragment);
+      }, function (cartNoteUpdate) {
+        cartNoteUpdate.add("cart", function (cart) {
+          cart.addFragment(spreads.CartFragment);
         });
-        checkoutGiftCardsAppend.add("checkoutUserErrors", function (checkoutUserErrors) {
-          checkoutUserErrors.addFragment(spreads.CheckoutUserErrorFragment);
-        });
-        checkoutGiftCardsAppend.add("checkout", function (checkout) {
-          checkout.addFragment(spreads.CheckoutFragment);
+        cartNoteUpdate.add("userErrors", function (userErrors) {
+          userErrors.add("field");
+          userErrors.add("message");
+          userErrors.add("code");
         });
       });
     });
@@ -8068,88 +8842,110 @@ var ShopifyBuy = (function () {
     var document = client.document();
     var spreads = {};
     var variables = {};
-    variables.checkoutGiftCardRemoveV2 = {};
-    variables.checkoutGiftCardRemoveV2.appliedGiftCardId = client.variable("appliedGiftCardId", "ID!");
-    variables.checkoutGiftCardRemoveV2.checkoutId = client.variable("checkoutId", "ID!");
-    spreads.VariantFragment = document.defineFragment("VariantFragment", "ProductVariant", function (root) {
+    variables.CartGiftCardCodesRemove = {};
+    variables.CartGiftCardCodesRemove.appliedGiftCardIds = client.variable("appliedGiftCardIds", "[ID!]!");
+    variables.CartGiftCardCodesRemove.cartId = client.variable("cartId", "ID!");
+    spreads.CartLineFragment = document.defineFragment("CartLineFragment", "CartLine", function (root) {
       root.add("id");
-      root.add("title");
-      root.add("price", function (price) {
-        price.add("amount");
-        price.add("currencyCode");
-      });
-      root.add("price", {
-        alias: "priceV2"
-      }, function (price) {
-        price.add("amount");
-        price.add("currencyCode");
-      });
-      root.add("weight");
-      root.add("availableForSale", {
-        alias: "available"
-      });
-      root.add("sku");
-      root.add("compareAtPrice", function (compareAtPrice) {
-        compareAtPrice.add("amount");
-        compareAtPrice.add("currencyCode");
-      });
-      root.add("compareAtPrice", {
-        alias: "compareAtPriceV2"
-      }, function (compareAtPrice) {
-        compareAtPrice.add("amount");
-        compareAtPrice.add("currencyCode");
-      });
-      root.add("image", function (image) {
-        image.add("id");
-        image.add("url", {
-          alias: "src"
-        });
-        image.add("altText");
-        image.add("width");
-        image.add("height");
-      });
-      root.add("selectedOptions", function (selectedOptions) {
-        selectedOptions.add("name");
-        selectedOptions.add("value");
-      });
-      root.add("unitPrice", function (unitPrice) {
-        unitPrice.add("amount");
-        unitPrice.add("currencyCode");
-      });
-      root.add("unitPriceMeasurement", function (unitPriceMeasurement) {
-        unitPriceMeasurement.add("measuredType");
-        unitPriceMeasurement.add("quantityUnit");
-        unitPriceMeasurement.add("quantityValue");
-        unitPriceMeasurement.add("referenceUnit");
-        unitPriceMeasurement.add("referenceValue");
-      });
-    });
-    spreads.DiscountApplicationFragment = document.defineFragment("DiscountApplicationFragment", "DiscountApplication", function (root) {
-      root.add("targetSelection");
-      root.add("allocationMethod");
-      root.add("targetType");
-      root.add("value", function (value) {
-        value.addInlineFragmentOn("MoneyV2", function (MoneyV2) {
-          MoneyV2.add("amount");
-          MoneyV2.add("currencyCode");
-        });
-        value.addInlineFragmentOn("PricingPercentageValue", function (PricingPercentageValue) {
-          PricingPercentageValue.add("percentage");
+      root.add("merchandise", function (merchandise) {
+        merchandise.addInlineFragmentOn("ProductVariant", function (ProductVariant) {
+          ProductVariant.add("id");
+          ProductVariant.add("title");
+          ProductVariant.add("image", function (image) {
+            image.add("id");
+            image.add("url", {
+              alias: "src"
+            });
+            image.add("altText");
+            image.add("width");
+            image.add("height");
+          });
+          ProductVariant.add("product", function (product) {
+            product.add("id");
+            product.add("handle");
+            product.add("title");
+          });
+          ProductVariant.add("weight");
+          ProductVariant.add("availableForSale", {
+            alias: "available"
+          });
+          ProductVariant.add("sku");
+          ProductVariant.add("selectedOptions", function (selectedOptions) {
+            selectedOptions.add("name");
+            selectedOptions.add("value");
+          });
+          ProductVariant.add("compareAtPrice", function (compareAtPrice) {
+            compareAtPrice.add("amount");
+            compareAtPrice.add("currencyCode");
+          });
+          ProductVariant.add("price", function (price) {
+            price.add("amount");
+            price.add("currencyCode");
+          });
+          ProductVariant.add("unitPrice", function (unitPrice) {
+            unitPrice.add("amount");
+            unitPrice.add("currencyCode");
+          });
+          ProductVariant.add("unitPriceMeasurement", function (unitPriceMeasurement) {
+            unitPriceMeasurement.add("measuredType");
+            unitPriceMeasurement.add("quantityUnit");
+            unitPriceMeasurement.add("quantityValue");
+            unitPriceMeasurement.add("referenceUnit");
+            unitPriceMeasurement.add("referenceValue");
+          });
         });
       });
-      root.addInlineFragmentOn("ManualDiscountApplication", function (ManualDiscountApplication) {
-        ManualDiscountApplication.add("title");
-        ManualDiscountApplication.add("description");
+      root.add("quantity");
+      root.add("attributes", function (attributes) {
+        attributes.add("key");
+        attributes.add("value");
       });
-      root.addInlineFragmentOn("DiscountCodeApplication", function (DiscountCodeApplication) {
-        DiscountCodeApplication.add("code");
-        DiscountCodeApplication.add("applicable");
+      root.add("cost", function (cost) {
+        cost.add("totalAmount", function (totalAmount) {
+          totalAmount.add("amount");
+          totalAmount.add("currencyCode");
+        });
+        cost.add("subtotalAmount", function (subtotalAmount) {
+          subtotalAmount.add("amount");
+          subtotalAmount.add("currencyCode");
+        });
+        cost.add("amountPerQuantity", function (amountPerQuantity) {
+          amountPerQuantity.add("amount");
+          amountPerQuantity.add("currencyCode");
+        });
+        cost.add("compareAtAmountPerQuantity", function (compareAtAmountPerQuantity) {
+          compareAtAmountPerQuantity.add("amount");
+          compareAtAmountPerQuantity.add("currencyCode");
+        });
       });
-      root.addInlineFragmentOn("ScriptDiscountApplication", function (ScriptDiscountApplication) {
-        ScriptDiscountApplication.add("title");
-      });
-      root.addInlineFragmentOn("AutomaticDiscountApplication", function (AutomaticDiscountApplication) {
-        AutomaticDiscountApplication.add("title");
+      root.add("discountAllocations", function (discountAllocations) {
+        discountAllocations.add("discountedAmount", function (discountedAmount) {
+          discountedAmount.add("amount");
+          discountedAmount.add("currencyCode");
+        });
+        discountAllocations.add("discountApplication", function (discountApplication) {
+          discountApplication.add("targetType");
+          discountApplication.add("allocationMethod");
+          discountApplication.add("targetSelection");
+          discountApplication.add("value", function (value) {
+            value.addInlineFragmentOn("PricingPercentageValue", function (PricingPercentageValue) {
+              PricingPercentageValue.add("percentage");
+            });
+            value.addInlineFragmentOn("MoneyV2", function (MoneyV2) {
+              MoneyV2.add("amount");
+              MoneyV2.add("currencyCode");
+            });
+          });
+        });
+        discountAllocations.addInlineFragmentOn("CartCodeDiscountAllocation", function (CartCodeDiscountAllocation) {
+          CartCodeDiscountAllocation.add("code");
+        });
+        discountAllocations.addInlineFragmentOn("CartAutomaticDiscountAllocation", function (CartAutomaticDiscountAllocation) {
+          CartAutomaticDiscountAllocation.add("title");
+        });
+        discountAllocations.addInlineFragmentOn("CartCustomDiscountAllocation", function (CartCustomDiscountAllocation) {
+          CartCustomDiscountAllocation.add("title");
+        });
       });
     });
     spreads.AppliedGiftCardFragment = document.defineFragment("AppliedGiftCardFragment", "AppliedGiftCard", function (root) {
@@ -8180,1063 +8976,233 @@ var ShopifyBuy = (function () {
       root.add("id");
       root.add("lastCharacters");
     });
-    spreads.VariantWithProductFragment = document.defineFragment("VariantWithProductFragment", "ProductVariant", function (root) {
-      root.addFragment(spreads.VariantFragment);
-      root.add("product", function (product) {
-        product.add("id");
-        product.add("handle");
-      });
-    });
-    spreads.UserErrorFragment = document.defineFragment("UserErrorFragment", "UserError", function (root) {
-      root.add("field");
-      root.add("message");
-    });
-    spreads.CheckoutUserErrorFragment = document.defineFragment("CheckoutUserErrorFragment", "CheckoutUserError", function (root) {
-      root.add("field");
-      root.add("message");
-      root.add("code");
-    });
-    spreads.MailingAddressFragment = document.defineFragment("MailingAddressFragment", "MailingAddress", function (root) {
+    spreads.CartFragment = document.defineFragment("CartFragment", "Cart", function (root) {
       root.add("id");
-      root.add("address1");
-      root.add("address2");
-      root.add("city");
-      root.add("company");
-      root.add("country");
-      root.add("firstName");
-      root.add("formatted");
-      root.add("lastName");
-      root.add("latitude");
-      root.add("longitude");
-      root.add("phone");
-      root.add("province");
-      root.add("zip");
-      root.add("name");
-      root.add("countryCodeV2", {
-        alias: "countryCode"
-      });
-      root.add("provinceCode");
-    });
-    spreads.CheckoutFragment = document.defineFragment("CheckoutFragment", "Checkout", function (root) {
-      root.add("id");
-      root.add("ready");
-      root.add("requiresShipping");
-      root.add("note");
-      root.add("paymentDue", function (paymentDue) {
-        paymentDue.add("amount");
-        paymentDue.add("currencyCode");
-      });
-      root.add("paymentDue", {
-        alias: "paymentDueV2"
-      }, function (paymentDue) {
-        paymentDue.add("amount");
-        paymentDue.add("currencyCode");
-      });
-      root.add("webUrl");
-      root.add("orderStatusUrl");
-      root.add("taxExempt");
-      root.add("taxesIncluded");
-      root.add("currencyCode");
-      root.add("totalTax", function (totalTax) {
-        totalTax.add("amount");
-        totalTax.add("currencyCode");
-      });
-      root.add("totalTax", {
-        alias: "totalTaxV2"
-      }, function (totalTax) {
-        totalTax.add("amount");
-        totalTax.add("currencyCode");
-      });
-      root.add("lineItemsSubtotalPrice", function (lineItemsSubtotalPrice) {
-        lineItemsSubtotalPrice.add("amount");
-        lineItemsSubtotalPrice.add("currencyCode");
-      });
-      root.add("subtotalPrice", function (subtotalPrice) {
-        subtotalPrice.add("amount");
-        subtotalPrice.add("currencyCode");
-      });
-      root.add("subtotalPrice", {
-        alias: "subtotalPriceV2"
-      }, function (subtotalPrice) {
-        subtotalPrice.add("amount");
-        subtotalPrice.add("currencyCode");
-      });
-      root.add("totalPrice", function (totalPrice) {
-        totalPrice.add("amount");
-        totalPrice.add("currencyCode");
-      });
-      root.add("totalPrice", {
-        alias: "totalPriceV2"
-      }, function (totalPrice) {
-        totalPrice.add("amount");
-        totalPrice.add("currencyCode");
-      });
-      root.add("completedAt");
       root.add("createdAt");
       root.add("updatedAt");
-      root.add("email");
-      root.add("discountApplications", {
+      root.add("lines", {
         args: {
           first: 10
         }
-      }, function (discountApplications) {
-        discountApplications.add("pageInfo", function (pageInfo) {
+      }, function (lines) {
+        lines.add("pageInfo", function (pageInfo) {
           pageInfo.add("hasNextPage");
           pageInfo.add("hasPreviousPage");
         });
-        discountApplications.add("edges", function (edges) {
+        lines.add("edges", function (edges) {
           edges.add("node", function (node) {
-            node.addFragment(spreads.DiscountApplicationFragment);
+            node.addFragment(spreads.CartLineFragment);
+          });
+        });
+      });
+      root.add("attributes", function (attributes) {
+        attributes.add("key");
+        attributes.add("value");
+      });
+      root.add("cost", function (cost) {
+        cost.add("checkoutChargeAmount", function (checkoutChargeAmount) {
+          checkoutChargeAmount.add("amount");
+          checkoutChargeAmount.add("currencyCode");
+        });
+        cost.add("totalAmount", function (totalAmount) {
+          totalAmount.add("amount");
+          totalAmount.add("currencyCode");
+        });
+        cost.add("subtotalAmount", function (subtotalAmount) {
+          subtotalAmount.add("amount");
+          subtotalAmount.add("currencyCode");
+        });
+        cost.add("totalTaxAmount", function (totalTaxAmount) {
+          totalTaxAmount.add("amount");
+          totalTaxAmount.add("currencyCode");
+        });
+        cost.add("totalDutyAmount", function (totalDutyAmount) {
+          totalDutyAmount.add("amount");
+          totalDutyAmount.add("currencyCode");
+        });
+      });
+      root.add("checkoutUrl");
+      root.add("discountCodes", function (discountCodes) {
+        discountCodes.add("applicable");
+        discountCodes.add("code");
+      });
+      root.add("discountAllocations", function (discountAllocations) {
+        discountAllocations.add("discountedAmount", function (discountedAmount) {
+          discountedAmount.add("amount");
+          discountedAmount.add("currencyCode");
+        });
+        discountAllocations.add("discountApplication", function (discountApplication) {
+          discountApplication.add("targetType");
+          discountApplication.add("allocationMethod");
+          discountApplication.add("targetSelection");
+          discountApplication.add("value", function (value) {
+            value.addInlineFragmentOn("PricingPercentageValue", function (PricingPercentageValue) {
+              PricingPercentageValue.add("percentage");
+            });
+            value.addInlineFragmentOn("MoneyV2", function (MoneyV2) {
+              MoneyV2.add("amount");
+              MoneyV2.add("currencyCode");
+            });
+          });
+        });
+        discountAllocations.addInlineFragmentOn("CartCodeDiscountAllocation", function (CartCodeDiscountAllocation) {
+          CartCodeDiscountAllocation.add("code");
+        });
+        discountAllocations.addInlineFragmentOn("CartAutomaticDiscountAllocation", function (CartAutomaticDiscountAllocation) {
+          CartAutomaticDiscountAllocation.add("title");
+        });
+        discountAllocations.addInlineFragmentOn("CartCustomDiscountAllocation", function (CartCustomDiscountAllocation) {
+          CartCustomDiscountAllocation.add("title");
+        });
+      });
+      root.add("buyerIdentity", function (buyerIdentity) {
+        buyerIdentity.add("countryCode");
+        buyerIdentity.add("preferences", function (preferences) {
+          preferences.add("delivery", function (delivery) {
+            delivery.add("coordinates", function (coordinates) {
+              coordinates.add("latitude");
+              coordinates.add("longitude");
+              coordinates.add("countryCode");
+            });
+            delivery.add("deliveryMethod");
+            delivery.add("pickupHandle");
+          });
+          preferences.add("wallet");
+        });
+        buyerIdentity.add("email");
+        buyerIdentity.add("phone");
+        buyerIdentity.add("customer", function (customer) {
+          customer.add("email");
+        });
+        buyerIdentity.add("deliveryAddressPreferences", function (deliveryAddressPreferences) {
+          deliveryAddressPreferences.addInlineFragmentOn("MailingAddress", function (MailingAddress) {
+            MailingAddress.add("address1");
+            MailingAddress.add("address2");
+            MailingAddress.add("city");
+            MailingAddress.add("company");
+            MailingAddress.add("country");
+            MailingAddress.add("countryCodeV2");
+            MailingAddress.add("firstName");
+            MailingAddress.add("formatted");
+            MailingAddress.add("formattedArea");
+            MailingAddress.add("lastName");
+            MailingAddress.add("latitude");
+            MailingAddress.add("longitude");
+            MailingAddress.add("name");
+            MailingAddress.add("phone");
+            MailingAddress.add("province");
+            MailingAddress.add("provinceCode");
+            MailingAddress.add("zip");
+          });
+        });
+      });
+      root.add("deliveryGroups", {
+        args: {
+          first: 10
+        }
+      }, function (deliveryGroups) {
+        deliveryGroups.add("pageInfo", function (pageInfo) {
+          pageInfo.add("hasNextPage");
+          pageInfo.add("hasPreviousPage");
+        });
+        deliveryGroups.add("edges", function (edges) {
+          edges.add("node", function (node) {
+            node.add("id");
+            node.add("deliveryAddress", function (deliveryAddress) {
+              deliveryAddress.add("address2");
+              deliveryAddress.add("address1");
+              deliveryAddress.add("city");
+              deliveryAddress.add("company");
+              deliveryAddress.add("country");
+              deliveryAddress.add("countryCodeV2");
+              deliveryAddress.add("firstName");
+              deliveryAddress.add("formatted");
+              deliveryAddress.add("formattedArea");
+              deliveryAddress.add("lastName");
+              deliveryAddress.add("latitude");
+              deliveryAddress.add("longitude");
+              deliveryAddress.add("name");
+              deliveryAddress.add("phone");
+              deliveryAddress.add("province");
+              deliveryAddress.add("provinceCode");
+            });
+            node.add("deliveryOptions", function (deliveryOptions) {
+              deliveryOptions.add("code");
+              deliveryOptions.add("deliveryMethodType");
+              deliveryOptions.add("description");
+              deliveryOptions.add("estimatedCost", function (estimatedCost) {
+                estimatedCost.add("amount");
+                estimatedCost.add("currencyCode");
+              });
+              deliveryOptions.add("handle");
+              deliveryOptions.add("title");
+            });
+            node.add("selectedDeliveryOption", function (selectedDeliveryOption) {
+              selectedDeliveryOption.add("code");
+              selectedDeliveryOption.add("deliveryMethodType");
+              selectedDeliveryOption.add("description");
+              selectedDeliveryOption.add("estimatedCost", function (estimatedCost) {
+                estimatedCost.add("amount");
+                estimatedCost.add("currencyCode");
+              });
+              selectedDeliveryOption.add("handle");
+              selectedDeliveryOption.add("title");
+            });
+            node.add("cartLines", {
+              args: {
+                first: 10
+              }
+            }, function (cartLines) {
+              cartLines.add("pageInfo", function (pageInfo) {
+                pageInfo.add("hasNextPage");
+                pageInfo.add("hasPreviousPage");
+              });
+              cartLines.add("edges", function (edges) {
+                edges.add("node", function (node) {
+                  node.add("id");
+                });
+              });
+            });
           });
         });
       });
       root.add("appliedGiftCards", function (appliedGiftCards) {
         appliedGiftCards.addFragment(spreads.AppliedGiftCardFragment);
       });
-      root.add("shippingAddress", function (shippingAddress) {
-        shippingAddress.addFragment(spreads.MailingAddressFragment);
-      });
-      root.add("shippingLine", function (shippingLine) {
-        shippingLine.add("handle");
-        shippingLine.add("price", function (price) {
-          price.add("amount");
-          price.add("currencyCode");
-        });
-        shippingLine.add("price", {
-          alias: "priceV2"
-        }, function (price) {
-          price.add("amount");
-          price.add("currencyCode");
-        });
-        shippingLine.add("title");
-      });
-      root.add("customAttributes", function (customAttributes) {
-        customAttributes.add("key");
-        customAttributes.add("value");
-      });
-      root.add("order", function (order) {
-        order.add("id");
-        order.add("processedAt");
-        order.add("orderNumber");
-        order.add("subtotalPrice", function (subtotalPrice) {
-          subtotalPrice.add("amount");
-          subtotalPrice.add("currencyCode");
-        });
-        order.add("subtotalPrice", {
-          alias: "subtotalPriceV2"
-        }, function (subtotalPrice) {
-          subtotalPrice.add("amount");
-          subtotalPrice.add("currencyCode");
-        });
-        order.add("totalShippingPrice", function (totalShippingPrice) {
-          totalShippingPrice.add("amount");
-          totalShippingPrice.add("currencyCode");
-        });
-        order.add("totalShippingPrice", {
-          alias: "totalShippingPriceV2"
-        }, function (totalShippingPrice) {
-          totalShippingPrice.add("amount");
-          totalShippingPrice.add("currencyCode");
-        });
-        order.add("totalTax", function (totalTax) {
-          totalTax.add("amount");
-          totalTax.add("currencyCode");
-        });
-        order.add("totalTax", {
-          alias: "totalTaxV2"
-        }, function (totalTax) {
-          totalTax.add("amount");
-          totalTax.add("currencyCode");
-        });
-        order.add("totalPrice", function (totalPrice) {
-          totalPrice.add("amount");
-          totalPrice.add("currencyCode");
-        });
-        order.add("totalPrice", {
-          alias: "totalPriceV2"
-        }, function (totalPrice) {
-          totalPrice.add("amount");
-          totalPrice.add("currencyCode");
-        });
-        order.add("currencyCode");
-        order.add("totalRefunded", function (totalRefunded) {
-          totalRefunded.add("amount");
-          totalRefunded.add("currencyCode");
-        });
-        order.add("totalRefunded", {
-          alias: "totalRefundedV2"
-        }, function (totalRefunded) {
-          totalRefunded.add("amount");
-          totalRefunded.add("currencyCode");
-        });
-        order.add("customerUrl");
-        order.add("shippingAddress", function (shippingAddress) {
-          shippingAddress.addFragment(spreads.MailingAddressFragment);
-        });
-        order.add("lineItems", {
-          args: {
-            first: 250
-          }
-        }, function (lineItems) {
-          lineItems.add("pageInfo", function (pageInfo) {
-            pageInfo.add("hasNextPage");
-            pageInfo.add("hasPreviousPage");
-          });
-          lineItems.add("edges", function (edges) {
-            edges.add("cursor");
-            edges.add("node", function (node) {
-              node.add("title");
-              node.add("variant", function (variant) {
-                variant.addFragment(spreads.VariantWithProductFragment);
-              });
-              node.add("quantity");
-              node.add("customAttributes", function (customAttributes) {
-                customAttributes.add("key");
-                customAttributes.add("value");
-              });
-            });
-          });
-        });
-      });
-      root.add("lineItems", {
-        args: {
-          first: 250
-        }
-      }, function (lineItems) {
-        lineItems.add("pageInfo", function (pageInfo) {
-          pageInfo.add("hasNextPage");
-          pageInfo.add("hasPreviousPage");
-        });
-        lineItems.add("edges", function (edges) {
-          edges.add("cursor");
-          edges.add("node", function (node) {
-            node.add("id");
-            node.add("title");
-            node.add("variant", function (variant) {
-              variant.addFragment(spreads.VariantWithProductFragment);
-            });
-            node.add("quantity");
-            node.add("customAttributes", function (customAttributes) {
-              customAttributes.add("key");
-              customAttributes.add("value");
-            });
-            node.add("discountAllocations", function (discountAllocations) {
-              discountAllocations.add("allocatedAmount", function (allocatedAmount) {
-                allocatedAmount.add("amount");
-                allocatedAmount.add("currencyCode");
-              });
-              discountAllocations.add("discountApplication", function (discountApplication) {
-                discountApplication.addFragment(spreads.DiscountApplicationFragment);
-              });
-            });
-          });
-        });
-      });
+      root.add("note");
     });
-    document.addMutation("checkoutGiftCardRemoveV2", [variables.checkoutGiftCardRemoveV2.appliedGiftCardId, variables.checkoutGiftCardRemoveV2.checkoutId], function (root) {
-      root.add("checkoutGiftCardRemoveV2", {
-        args: {
-          appliedGiftCardId: variables.checkoutGiftCardRemoveV2.appliedGiftCardId,
-          checkoutId: variables.checkoutGiftCardRemoveV2.checkoutId
-        }
-      }, function (checkoutGiftCardRemoveV2) {
-        checkoutGiftCardRemoveV2.add("userErrors", function (userErrors) {
-          userErrors.addFragment(spreads.UserErrorFragment);
-        });
-        checkoutGiftCardRemoveV2.add("checkoutUserErrors", function (checkoutUserErrors) {
-          checkoutUserErrors.addFragment(spreads.CheckoutUserErrorFragment);
-        });
-        checkoutGiftCardRemoveV2.add("checkout", function (checkout) {
-          checkout.addFragment(spreads.CheckoutFragment);
-        });
-      });
-    });
-    return document;
-  }
-
-  function query$23(client) {
-    var document = client.document();
-    var spreads = {};
-    var variables = {};
-    variables.checkoutEmailUpdateV2 = {};
-    variables.checkoutEmailUpdateV2.checkoutId = client.variable("checkoutId", "ID!");
-    variables.checkoutEmailUpdateV2.email = client.variable("email", "String!");
-    spreads.VariantFragment = document.defineFragment("VariantFragment", "ProductVariant", function (root) {
-      root.add("id");
-      root.add("title");
-      root.add("price", function (price) {
-        price.add("amount");
-        price.add("currencyCode");
-      });
-      root.add("price", {
-        alias: "priceV2"
-      }, function (price) {
-        price.add("amount");
-        price.add("currencyCode");
-      });
-      root.add("weight");
-      root.add("availableForSale", {
-        alias: "available"
-      });
-      root.add("sku");
-      root.add("compareAtPrice", function (compareAtPrice) {
-        compareAtPrice.add("amount");
-        compareAtPrice.add("currencyCode");
-      });
-      root.add("compareAtPrice", {
-        alias: "compareAtPriceV2"
-      }, function (compareAtPrice) {
-        compareAtPrice.add("amount");
-        compareAtPrice.add("currencyCode");
-      });
-      root.add("image", function (image) {
-        image.add("id");
-        image.add("url", {
-          alias: "src"
-        });
-        image.add("altText");
-        image.add("width");
-        image.add("height");
-      });
-      root.add("selectedOptions", function (selectedOptions) {
-        selectedOptions.add("name");
-        selectedOptions.add("value");
-      });
-      root.add("unitPrice", function (unitPrice) {
-        unitPrice.add("amount");
-        unitPrice.add("currencyCode");
-      });
-      root.add("unitPriceMeasurement", function (unitPriceMeasurement) {
-        unitPriceMeasurement.add("measuredType");
-        unitPriceMeasurement.add("quantityUnit");
-        unitPriceMeasurement.add("quantityValue");
-        unitPriceMeasurement.add("referenceUnit");
-        unitPriceMeasurement.add("referenceValue");
-      });
-    });
-    spreads.DiscountApplicationFragment = document.defineFragment("DiscountApplicationFragment", "DiscountApplication", function (root) {
-      root.add("targetSelection");
-      root.add("allocationMethod");
-      root.add("targetType");
-      root.add("value", function (value) {
-        value.addInlineFragmentOn("MoneyV2", function (MoneyV2) {
-          MoneyV2.add("amount");
-          MoneyV2.add("currencyCode");
-        });
-        value.addInlineFragmentOn("PricingPercentageValue", function (PricingPercentageValue) {
-          PricingPercentageValue.add("percentage");
-        });
-      });
-      root.addInlineFragmentOn("ManualDiscountApplication", function (ManualDiscountApplication) {
-        ManualDiscountApplication.add("title");
-        ManualDiscountApplication.add("description");
-      });
-      root.addInlineFragmentOn("DiscountCodeApplication", function (DiscountCodeApplication) {
-        DiscountCodeApplication.add("code");
-        DiscountCodeApplication.add("applicable");
-      });
-      root.addInlineFragmentOn("ScriptDiscountApplication", function (ScriptDiscountApplication) {
-        ScriptDiscountApplication.add("title");
-      });
-      root.addInlineFragmentOn("AutomaticDiscountApplication", function (AutomaticDiscountApplication) {
-        AutomaticDiscountApplication.add("title");
-      });
-    });
-    spreads.AppliedGiftCardFragment = document.defineFragment("AppliedGiftCardFragment", "AppliedGiftCard", function (root) {
-      root.add("amountUsed", function (amountUsed) {
-        amountUsed.add("amount");
-        amountUsed.add("currencyCode");
-      });
-      root.add("amountUsed", {
-        alias: "amountUsedV2"
-      }, function (amountUsed) {
-        amountUsed.add("amount");
-        amountUsed.add("currencyCode");
-      });
-      root.add("balance", function (balance) {
-        balance.add("amount");
-        balance.add("currencyCode");
-      });
-      root.add("balance", {
-        alias: "balanceV2"
-      }, function (balance) {
-        balance.add("amount");
-        balance.add("currencyCode");
-      });
-      root.add("presentmentAmountUsed", function (presentmentAmountUsed) {
-        presentmentAmountUsed.add("amount");
-        presentmentAmountUsed.add("currencyCode");
-      });
-      root.add("id");
-      root.add("lastCharacters");
-    });
-    spreads.VariantWithProductFragment = document.defineFragment("VariantWithProductFragment", "ProductVariant", function (root) {
-      root.addFragment(spreads.VariantFragment);
-      root.add("product", function (product) {
-        product.add("id");
-        product.add("handle");
-      });
-    });
-    spreads.UserErrorFragment = document.defineFragment("UserErrorFragment", "UserError", function (root) {
-      root.add("field");
-      root.add("message");
-    });
-    spreads.CheckoutUserErrorFragment = document.defineFragment("CheckoutUserErrorFragment", "CheckoutUserError", function (root) {
+    spreads.CartUserErrorFragment = document.defineFragment("CartUserErrorFragment", "CartUserError", function (root) {
       root.add("field");
       root.add("message");
       root.add("code");
     });
-    spreads.MailingAddressFragment = document.defineFragment("MailingAddressFragment", "MailingAddress", function (root) {
-      root.add("id");
-      root.add("address1");
-      root.add("address2");
-      root.add("city");
-      root.add("company");
-      root.add("country");
-      root.add("firstName");
-      root.add("formatted");
-      root.add("lastName");
-      root.add("latitude");
-      root.add("longitude");
-      root.add("phone");
-      root.add("province");
-      root.add("zip");
-      root.add("name");
-      root.add("countryCodeV2", {
-        alias: "countryCode"
-      });
-      root.add("provinceCode");
-    });
-    spreads.CheckoutFragment = document.defineFragment("CheckoutFragment", "Checkout", function (root) {
-      root.add("id");
-      root.add("ready");
-      root.add("requiresShipping");
-      root.add("note");
-      root.add("paymentDue", function (paymentDue) {
-        paymentDue.add("amount");
-        paymentDue.add("currencyCode");
-      });
-      root.add("paymentDue", {
-        alias: "paymentDueV2"
-      }, function (paymentDue) {
-        paymentDue.add("amount");
-        paymentDue.add("currencyCode");
-      });
-      root.add("webUrl");
-      root.add("orderStatusUrl");
-      root.add("taxExempt");
-      root.add("taxesIncluded");
-      root.add("currencyCode");
-      root.add("totalTax", function (totalTax) {
-        totalTax.add("amount");
-        totalTax.add("currencyCode");
-      });
-      root.add("totalTax", {
-        alias: "totalTaxV2"
-      }, function (totalTax) {
-        totalTax.add("amount");
-        totalTax.add("currencyCode");
-      });
-      root.add("lineItemsSubtotalPrice", function (lineItemsSubtotalPrice) {
-        lineItemsSubtotalPrice.add("amount");
-        lineItemsSubtotalPrice.add("currencyCode");
-      });
-      root.add("subtotalPrice", function (subtotalPrice) {
-        subtotalPrice.add("amount");
-        subtotalPrice.add("currencyCode");
-      });
-      root.add("subtotalPrice", {
-        alias: "subtotalPriceV2"
-      }, function (subtotalPrice) {
-        subtotalPrice.add("amount");
-        subtotalPrice.add("currencyCode");
-      });
-      root.add("totalPrice", function (totalPrice) {
-        totalPrice.add("amount");
-        totalPrice.add("currencyCode");
-      });
-      root.add("totalPrice", {
-        alias: "totalPriceV2"
-      }, function (totalPrice) {
-        totalPrice.add("amount");
-        totalPrice.add("currencyCode");
-      });
-      root.add("completedAt");
-      root.add("createdAt");
-      root.add("updatedAt");
-      root.add("email");
-      root.add("discountApplications", {
-        args: {
-          first: 10
-        }
-      }, function (discountApplications) {
-        discountApplications.add("pageInfo", function (pageInfo) {
-          pageInfo.add("hasNextPage");
-          pageInfo.add("hasPreviousPage");
-        });
-        discountApplications.add("edges", function (edges) {
-          edges.add("node", function (node) {
-            node.addFragment(spreads.DiscountApplicationFragment);
-          });
-        });
-      });
-      root.add("appliedGiftCards", function (appliedGiftCards) {
-        appliedGiftCards.addFragment(spreads.AppliedGiftCardFragment);
-      });
-      root.add("shippingAddress", function (shippingAddress) {
-        shippingAddress.addFragment(spreads.MailingAddressFragment);
-      });
-      root.add("shippingLine", function (shippingLine) {
-        shippingLine.add("handle");
-        shippingLine.add("price", function (price) {
-          price.add("amount");
-          price.add("currencyCode");
-        });
-        shippingLine.add("price", {
-          alias: "priceV2"
-        }, function (price) {
-          price.add("amount");
-          price.add("currencyCode");
-        });
-        shippingLine.add("title");
-      });
-      root.add("customAttributes", function (customAttributes) {
-        customAttributes.add("key");
-        customAttributes.add("value");
-      });
-      root.add("order", function (order) {
-        order.add("id");
-        order.add("processedAt");
-        order.add("orderNumber");
-        order.add("subtotalPrice", function (subtotalPrice) {
-          subtotalPrice.add("amount");
-          subtotalPrice.add("currencyCode");
-        });
-        order.add("subtotalPrice", {
-          alias: "subtotalPriceV2"
-        }, function (subtotalPrice) {
-          subtotalPrice.add("amount");
-          subtotalPrice.add("currencyCode");
-        });
-        order.add("totalShippingPrice", function (totalShippingPrice) {
-          totalShippingPrice.add("amount");
-          totalShippingPrice.add("currencyCode");
-        });
-        order.add("totalShippingPrice", {
-          alias: "totalShippingPriceV2"
-        }, function (totalShippingPrice) {
-          totalShippingPrice.add("amount");
-          totalShippingPrice.add("currencyCode");
-        });
-        order.add("totalTax", function (totalTax) {
-          totalTax.add("amount");
-          totalTax.add("currencyCode");
-        });
-        order.add("totalTax", {
-          alias: "totalTaxV2"
-        }, function (totalTax) {
-          totalTax.add("amount");
-          totalTax.add("currencyCode");
-        });
-        order.add("totalPrice", function (totalPrice) {
-          totalPrice.add("amount");
-          totalPrice.add("currencyCode");
-        });
-        order.add("totalPrice", {
-          alias: "totalPriceV2"
-        }, function (totalPrice) {
-          totalPrice.add("amount");
-          totalPrice.add("currencyCode");
-        });
-        order.add("currencyCode");
-        order.add("totalRefunded", function (totalRefunded) {
-          totalRefunded.add("amount");
-          totalRefunded.add("currencyCode");
-        });
-        order.add("totalRefunded", {
-          alias: "totalRefundedV2"
-        }, function (totalRefunded) {
-          totalRefunded.add("amount");
-          totalRefunded.add("currencyCode");
-        });
-        order.add("customerUrl");
-        order.add("shippingAddress", function (shippingAddress) {
-          shippingAddress.addFragment(spreads.MailingAddressFragment);
-        });
-        order.add("lineItems", {
-          args: {
-            first: 250
-          }
-        }, function (lineItems) {
-          lineItems.add("pageInfo", function (pageInfo) {
-            pageInfo.add("hasNextPage");
-            pageInfo.add("hasPreviousPage");
-          });
-          lineItems.add("edges", function (edges) {
-            edges.add("cursor");
-            edges.add("node", function (node) {
-              node.add("title");
-              node.add("variant", function (variant) {
-                variant.addFragment(spreads.VariantWithProductFragment);
-              });
-              node.add("quantity");
-              node.add("customAttributes", function (customAttributes) {
-                customAttributes.add("key");
-                customAttributes.add("value");
-              });
-            });
-          });
-        });
-      });
-      root.add("lineItems", {
-        args: {
-          first: 250
-        }
-      }, function (lineItems) {
-        lineItems.add("pageInfo", function (pageInfo) {
-          pageInfo.add("hasNextPage");
-          pageInfo.add("hasPreviousPage");
-        });
-        lineItems.add("edges", function (edges) {
-          edges.add("cursor");
-          edges.add("node", function (node) {
-            node.add("id");
-            node.add("title");
-            node.add("variant", function (variant) {
-              variant.addFragment(spreads.VariantWithProductFragment);
-            });
-            node.add("quantity");
-            node.add("customAttributes", function (customAttributes) {
-              customAttributes.add("key");
-              customAttributes.add("value");
-            });
-            node.add("discountAllocations", function (discountAllocations) {
-              discountAllocations.add("allocatedAmount", function (allocatedAmount) {
-                allocatedAmount.add("amount");
-                allocatedAmount.add("currencyCode");
-              });
-              discountAllocations.add("discountApplication", function (discountApplication) {
-                discountApplication.addFragment(spreads.DiscountApplicationFragment);
-              });
-            });
-          });
-        });
-      });
-    });
-    document.addMutation("checkoutEmailUpdateV2", [variables.checkoutEmailUpdateV2.checkoutId, variables.checkoutEmailUpdateV2.email], function (root) {
-      root.add("checkoutEmailUpdateV2", {
-        args: {
-          checkoutId: variables.checkoutEmailUpdateV2.checkoutId,
-          email: variables.checkoutEmailUpdateV2.email
-        }
-      }, function (checkoutEmailUpdateV2) {
-        checkoutEmailUpdateV2.add("userErrors", function (userErrors) {
-          userErrors.addFragment(spreads.UserErrorFragment);
-        });
-        checkoutEmailUpdateV2.add("checkoutUserErrors", function (checkoutUserErrors) {
-          checkoutUserErrors.addFragment(spreads.CheckoutUserErrorFragment);
-        });
-        checkoutEmailUpdateV2.add("checkout", function (checkout) {
-          checkout.addFragment(spreads.CheckoutFragment);
-        });
-      });
-    });
-    return document;
-  }
-
-  function query$24(client) {
-    var document = client.document();
-    var spreads = {};
-    var variables = {};
-    variables.checkoutShippingAddressUpdateV2 = {};
-    variables.checkoutShippingAddressUpdateV2.shippingAddress = client.variable("shippingAddress", "MailingAddressInput!");
-    variables.checkoutShippingAddressUpdateV2.checkoutId = client.variable("checkoutId", "ID!");
-    spreads.VariantFragment = document.defineFragment("VariantFragment", "ProductVariant", function (root) {
-      root.add("id");
-      root.add("title");
-      root.add("price", function (price) {
-        price.add("amount");
-        price.add("currencyCode");
-      });
-      root.add("price", {
-        alias: "priceV2"
-      }, function (price) {
-        price.add("amount");
-        price.add("currencyCode");
-      });
-      root.add("weight");
-      root.add("availableForSale", {
-        alias: "available"
-      });
-      root.add("sku");
-      root.add("compareAtPrice", function (compareAtPrice) {
-        compareAtPrice.add("amount");
-        compareAtPrice.add("currencyCode");
-      });
-      root.add("compareAtPrice", {
-        alias: "compareAtPriceV2"
-      }, function (compareAtPrice) {
-        compareAtPrice.add("amount");
-        compareAtPrice.add("currencyCode");
-      });
-      root.add("image", function (image) {
-        image.add("id");
-        image.add("url", {
-          alias: "src"
-        });
-        image.add("altText");
-        image.add("width");
-        image.add("height");
-      });
-      root.add("selectedOptions", function (selectedOptions) {
-        selectedOptions.add("name");
-        selectedOptions.add("value");
-      });
-      root.add("unitPrice", function (unitPrice) {
-        unitPrice.add("amount");
-        unitPrice.add("currencyCode");
-      });
-      root.add("unitPriceMeasurement", function (unitPriceMeasurement) {
-        unitPriceMeasurement.add("measuredType");
-        unitPriceMeasurement.add("quantityUnit");
-        unitPriceMeasurement.add("quantityValue");
-        unitPriceMeasurement.add("referenceUnit");
-        unitPriceMeasurement.add("referenceValue");
-      });
-    });
-    spreads.DiscountApplicationFragment = document.defineFragment("DiscountApplicationFragment", "DiscountApplication", function (root) {
-      root.add("targetSelection");
-      root.add("allocationMethod");
-      root.add("targetType");
-      root.add("value", function (value) {
-        value.addInlineFragmentOn("MoneyV2", function (MoneyV2) {
-          MoneyV2.add("amount");
-          MoneyV2.add("currencyCode");
-        });
-        value.addInlineFragmentOn("PricingPercentageValue", function (PricingPercentageValue) {
-          PricingPercentageValue.add("percentage");
-        });
-      });
-      root.addInlineFragmentOn("ManualDiscountApplication", function (ManualDiscountApplication) {
-        ManualDiscountApplication.add("title");
-        ManualDiscountApplication.add("description");
-      });
-      root.addInlineFragmentOn("DiscountCodeApplication", function (DiscountCodeApplication) {
-        DiscountCodeApplication.add("code");
-        DiscountCodeApplication.add("applicable");
-      });
-      root.addInlineFragmentOn("ScriptDiscountApplication", function (ScriptDiscountApplication) {
-        ScriptDiscountApplication.add("title");
-      });
-      root.addInlineFragmentOn("AutomaticDiscountApplication", function (AutomaticDiscountApplication) {
-        AutomaticDiscountApplication.add("title");
-      });
-    });
-    spreads.AppliedGiftCardFragment = document.defineFragment("AppliedGiftCardFragment", "AppliedGiftCard", function (root) {
-      root.add("amountUsed", function (amountUsed) {
-        amountUsed.add("amount");
-        amountUsed.add("currencyCode");
-      });
-      root.add("amountUsed", {
-        alias: "amountUsedV2"
-      }, function (amountUsed) {
-        amountUsed.add("amount");
-        amountUsed.add("currencyCode");
-      });
-      root.add("balance", function (balance) {
-        balance.add("amount");
-        balance.add("currencyCode");
-      });
-      root.add("balance", {
-        alias: "balanceV2"
-      }, function (balance) {
-        balance.add("amount");
-        balance.add("currencyCode");
-      });
-      root.add("presentmentAmountUsed", function (presentmentAmountUsed) {
-        presentmentAmountUsed.add("amount");
-        presentmentAmountUsed.add("currencyCode");
-      });
-      root.add("id");
-      root.add("lastCharacters");
-    });
-    spreads.VariantWithProductFragment = document.defineFragment("VariantWithProductFragment", "ProductVariant", function (root) {
-      root.addFragment(spreads.VariantFragment);
-      root.add("product", function (product) {
-        product.add("id");
-        product.add("handle");
-      });
-    });
-    spreads.UserErrorFragment = document.defineFragment("UserErrorFragment", "UserError", function (root) {
-      root.add("field");
-      root.add("message");
-    });
-    spreads.CheckoutUserErrorFragment = document.defineFragment("CheckoutUserErrorFragment", "CheckoutUserError", function (root) {
-      root.add("field");
-      root.add("message");
+    spreads.CartWarningFragment = document.defineFragment("CartWarningFragment", "CartWarning", function (root) {
       root.add("code");
+      root.add("message");
     });
-    spreads.MailingAddressFragment = document.defineFragment("MailingAddressFragment", "MailingAddress", function (root) {
-      root.add("id");
-      root.add("address1");
-      root.add("address2");
-      root.add("city");
-      root.add("company");
-      root.add("country");
-      root.add("firstName");
-      root.add("formatted");
-      root.add("lastName");
-      root.add("latitude");
-      root.add("longitude");
-      root.add("phone");
-      root.add("province");
-      root.add("zip");
-      root.add("name");
-      root.add("countryCodeV2", {
-        alias: "countryCode"
-      });
-      root.add("provinceCode");
-    });
-    spreads.CheckoutFragment = document.defineFragment("CheckoutFragment", "Checkout", function (root) {
-      root.add("id");
-      root.add("ready");
-      root.add("requiresShipping");
-      root.add("note");
-      root.add("paymentDue", function (paymentDue) {
-        paymentDue.add("amount");
-        paymentDue.add("currencyCode");
-      });
-      root.add("paymentDue", {
-        alias: "paymentDueV2"
-      }, function (paymentDue) {
-        paymentDue.add("amount");
-        paymentDue.add("currencyCode");
-      });
-      root.add("webUrl");
-      root.add("orderStatusUrl");
-      root.add("taxExempt");
-      root.add("taxesIncluded");
-      root.add("currencyCode");
-      root.add("totalTax", function (totalTax) {
-        totalTax.add("amount");
-        totalTax.add("currencyCode");
-      });
-      root.add("totalTax", {
-        alias: "totalTaxV2"
-      }, function (totalTax) {
-        totalTax.add("amount");
-        totalTax.add("currencyCode");
-      });
-      root.add("lineItemsSubtotalPrice", function (lineItemsSubtotalPrice) {
-        lineItemsSubtotalPrice.add("amount");
-        lineItemsSubtotalPrice.add("currencyCode");
-      });
-      root.add("subtotalPrice", function (subtotalPrice) {
-        subtotalPrice.add("amount");
-        subtotalPrice.add("currencyCode");
-      });
-      root.add("subtotalPrice", {
-        alias: "subtotalPriceV2"
-      }, function (subtotalPrice) {
-        subtotalPrice.add("amount");
-        subtotalPrice.add("currencyCode");
-      });
-      root.add("totalPrice", function (totalPrice) {
-        totalPrice.add("amount");
-        totalPrice.add("currencyCode");
-      });
-      root.add("totalPrice", {
-        alias: "totalPriceV2"
-      }, function (totalPrice) {
-        totalPrice.add("amount");
-        totalPrice.add("currencyCode");
-      });
-      root.add("completedAt");
-      root.add("createdAt");
-      root.add("updatedAt");
-      root.add("email");
-      root.add("discountApplications", {
+    document.addMutation("CartGiftCardCodesRemove", [variables.CartGiftCardCodesRemove.appliedGiftCardIds, variables.CartGiftCardCodesRemove.cartId], function (root) {
+      root.add("cartGiftCardCodesRemove", {
         args: {
-          first: 10
+          appliedGiftCardIds: variables.CartGiftCardCodesRemove.appliedGiftCardIds,
+          cartId: variables.CartGiftCardCodesRemove.cartId
         }
-      }, function (discountApplications) {
-        discountApplications.add("pageInfo", function (pageInfo) {
-          pageInfo.add("hasNextPage");
-          pageInfo.add("hasPreviousPage");
+      }, function (cartGiftCardCodesRemove) {
+        cartGiftCardCodesRemove.add("cart", function (cart) {
+          cart.addFragment(spreads.CartFragment);
         });
-        discountApplications.add("edges", function (edges) {
-          edges.add("node", function (node) {
-            node.addFragment(spreads.DiscountApplicationFragment);
-          });
+        cartGiftCardCodesRemove.add("userErrors", function (userErrors) {
+          userErrors.addFragment(spreads.CartUserErrorFragment);
         });
-      });
-      root.add("appliedGiftCards", function (appliedGiftCards) {
-        appliedGiftCards.addFragment(spreads.AppliedGiftCardFragment);
-      });
-      root.add("shippingAddress", function (shippingAddress) {
-        shippingAddress.addFragment(spreads.MailingAddressFragment);
-      });
-      root.add("shippingLine", function (shippingLine) {
-        shippingLine.add("handle");
-        shippingLine.add("price", function (price) {
-          price.add("amount");
-          price.add("currencyCode");
-        });
-        shippingLine.add("price", {
-          alias: "priceV2"
-        }, function (price) {
-          price.add("amount");
-          price.add("currencyCode");
-        });
-        shippingLine.add("title");
-      });
-      root.add("customAttributes", function (customAttributes) {
-        customAttributes.add("key");
-        customAttributes.add("value");
-      });
-      root.add("order", function (order) {
-        order.add("id");
-        order.add("processedAt");
-        order.add("orderNumber");
-        order.add("subtotalPrice", function (subtotalPrice) {
-          subtotalPrice.add("amount");
-          subtotalPrice.add("currencyCode");
-        });
-        order.add("subtotalPrice", {
-          alias: "subtotalPriceV2"
-        }, function (subtotalPrice) {
-          subtotalPrice.add("amount");
-          subtotalPrice.add("currencyCode");
-        });
-        order.add("totalShippingPrice", function (totalShippingPrice) {
-          totalShippingPrice.add("amount");
-          totalShippingPrice.add("currencyCode");
-        });
-        order.add("totalShippingPrice", {
-          alias: "totalShippingPriceV2"
-        }, function (totalShippingPrice) {
-          totalShippingPrice.add("amount");
-          totalShippingPrice.add("currencyCode");
-        });
-        order.add("totalTax", function (totalTax) {
-          totalTax.add("amount");
-          totalTax.add("currencyCode");
-        });
-        order.add("totalTax", {
-          alias: "totalTaxV2"
-        }, function (totalTax) {
-          totalTax.add("amount");
-          totalTax.add("currencyCode");
-        });
-        order.add("totalPrice", function (totalPrice) {
-          totalPrice.add("amount");
-          totalPrice.add("currencyCode");
-        });
-        order.add("totalPrice", {
-          alias: "totalPriceV2"
-        }, function (totalPrice) {
-          totalPrice.add("amount");
-          totalPrice.add("currencyCode");
-        });
-        order.add("currencyCode");
-        order.add("totalRefunded", function (totalRefunded) {
-          totalRefunded.add("amount");
-          totalRefunded.add("currencyCode");
-        });
-        order.add("totalRefunded", {
-          alias: "totalRefundedV2"
-        }, function (totalRefunded) {
-          totalRefunded.add("amount");
-          totalRefunded.add("currencyCode");
-        });
-        order.add("customerUrl");
-        order.add("shippingAddress", function (shippingAddress) {
-          shippingAddress.addFragment(spreads.MailingAddressFragment);
-        });
-        order.add("lineItems", {
-          args: {
-            first: 250
-          }
-        }, function (lineItems) {
-          lineItems.add("pageInfo", function (pageInfo) {
-            pageInfo.add("hasNextPage");
-            pageInfo.add("hasPreviousPage");
-          });
-          lineItems.add("edges", function (edges) {
-            edges.add("cursor");
-            edges.add("node", function (node) {
-              node.add("title");
-              node.add("variant", function (variant) {
-                variant.addFragment(spreads.VariantWithProductFragment);
-              });
-              node.add("quantity");
-              node.add("customAttributes", function (customAttributes) {
-                customAttributes.add("key");
-                customAttributes.add("value");
-              });
-            });
-          });
-        });
-      });
-      root.add("lineItems", {
-        args: {
-          first: 250
-        }
-      }, function (lineItems) {
-        lineItems.add("pageInfo", function (pageInfo) {
-          pageInfo.add("hasNextPage");
-          pageInfo.add("hasPreviousPage");
-        });
-        lineItems.add("edges", function (edges) {
-          edges.add("cursor");
-          edges.add("node", function (node) {
-            node.add("id");
-            node.add("title");
-            node.add("variant", function (variant) {
-              variant.addFragment(spreads.VariantWithProductFragment);
-            });
-            node.add("quantity");
-            node.add("customAttributes", function (customAttributes) {
-              customAttributes.add("key");
-              customAttributes.add("value");
-            });
-            node.add("discountAllocations", function (discountAllocations) {
-              discountAllocations.add("allocatedAmount", function (allocatedAmount) {
-                allocatedAmount.add("amount");
-                allocatedAmount.add("currencyCode");
-              });
-              discountAllocations.add("discountApplication", function (discountApplication) {
-                discountApplication.addFragment(spreads.DiscountApplicationFragment);
-              });
-            });
-          });
-        });
-      });
-    });
-    document.addMutation("checkoutShippingAddressUpdateV2", [variables.checkoutShippingAddressUpdateV2.shippingAddress, variables.checkoutShippingAddressUpdateV2.checkoutId], function (root) {
-      root.add("checkoutShippingAddressUpdateV2", {
-        args: {
-          shippingAddress: variables.checkoutShippingAddressUpdateV2.shippingAddress,
-          checkoutId: variables.checkoutShippingAddressUpdateV2.checkoutId
-        }
-      }, function (checkoutShippingAddressUpdateV2) {
-        checkoutShippingAddressUpdateV2.add("userErrors", function (userErrors) {
-          userErrors.addFragment(spreads.UserErrorFragment);
-        });
-        checkoutShippingAddressUpdateV2.add("checkoutUserErrors", function (checkoutUserErrors) {
-          checkoutUserErrors.addFragment(spreads.CheckoutUserErrorFragment);
-        });
-        checkoutShippingAddressUpdateV2.add("checkout", function (checkout) {
-          checkout.addFragment(spreads.CheckoutFragment);
+        cartGiftCardCodesRemove.add("warnings", function (warnings) {
+          warnings.addFragment(spreads.CartWarningFragment);
         });
       });
     });
     return document;
   }
 
-  // GraphQL
   /**
-   * The JS Buy SDK checkout resource
+   * The JS Buy SDK cart resource
    * @class
    */
 
@@ -9253,28 +9219,45 @@ var ShopifyBuy = (function () {
 
 
       /**
-       * Fetches a checkout by ID.
+       * Fetches a card by ID.
        *
        * @example
-       * client.checkout.fetch('FlZj9rZXlN5MDY4ZDFiZTUyZTUwNTE2MDNhZjg=').then((checkout) => {
-       *   // Do something with the checkout
+       * client.cart.fetch('FlZj9rZXlN5MDY4ZDFiZTUyZTUwNTE2MDNhZjg=').then((cart) => {
+       *   // Do something with the cart
        * });
        *
-       * @param {String} id The id of the checkout to fetch.
-       * @return {Promise|GraphModel} A promise resolving with a `GraphModel` of the checkout.
+       * @param {String} id The id of the card to fetch.
+       * @return {Promise|GraphModel} A promise resolving with a `GraphModel` of the cart.
        */
       value: function fetch(id) {
         var _this2 = this;
 
-        return this.graphQLClient.send(query$12, { id: id }).then(defaultResolver('node')).then(function (checkout) {
-          if (!checkout) {
-            return null;
-          }
+        return this.graphQLClient.send(query$12, { id: id }).then(function (_ref) {
+          var model = _ref.model,
+              data = _ref.data;
 
-          return _this2.graphQLClient.fetchAllPages(checkout.lineItems, { pageSize: 250 }).then(function (lineItems) {
-            checkout.attrs.lineItems = lineItems;
+          return new Promise(function (resolve, reject) {
+            try {
+              var cart = data.cart || data.node;
 
-            return checkout;
+              if (!cart) {
+                return resolve(null);
+              }
+
+              return _this2.graphQLClient.fetchAllPages(model.cart.lines, { pageSize: 250 }).then(function (lines) {
+                model.cart.attrs.lines = lines;
+
+                return resolve(mapCartPayload(model.cart));
+              });
+            } catch (error) {
+              if (error) {
+                reject(error);
+              } else {
+                reject([{ message: 'an unknown error has occurred.' }]);
+              }
+            }
+
+            return resolve(null);
           });
         });
       }
@@ -9299,16 +9282,18 @@ var ShopifyBuy = (function () {
        *   @param {Object} [input.shippingAddress] A shipping address. See the {@link https://help.shopify.com/api/storefront-api/reference/input-object/mailingaddressinput|Storefront API reference} for valid input fields.
        *   @param {String} [input.note] A note for the checkout.
        *   @param {Object[]} [input.customAttributes] A list of custom attributes for the checkout. See the {@link https://help.shopify.com/api/storefront-api/reference/input-object/attributeinput|Storefront API reference} for valid input fields.
-       *   @param {String} [input.presentmentCurrencyCode ] A presentment currency code. See the {@link https://help.shopify.com/en/api/storefront-api/reference/enum/currencycode|Storefront API reference} for valid currency code values.
-       * @return {Promise|GraphModel} A promise resolving with the created checkout.
+       *   @deprecated {String} [input.presentmentCurrencyCode ] A presentment currency code. See the {@link https://help.shopify.com/en/api/storefront-api/reference/enum/currencycode|Storefront API reference} for valid currency code values.
+       *   @return {Promise|GraphModel} A promise resolving with the created checkout.
        */
 
     }, {
       key: 'create',
       value: function create() {
-        var input = arguments.length > 0 && arguments[0] !== undefined ? arguments[0] : {};
+        var i = arguments.length > 0 && arguments[0] !== undefined ? arguments[0] : {};
 
-        return this.graphQLClient.send(query$13, { input: input }).then(handleCheckoutMutation('checkoutCreate', this.graphQLClient));
+        var input = this.inputMapper.create(i);
+
+        return this.graphQLClient.send(query$13, { input: input }).then(handleCartMutation('cartCreate', this.graphQLClient));
       }
 
       /**
@@ -9324,7 +9309,6 @@ var ShopifyBuy = (function () {
        *
        * @param {String} checkoutId The ID of the checkout to update.
        * @param {Object} [input] An input object containing zero or more of:
-       *   @param {Boolean} [input.allowPartialAddresses] An email connected to the checkout.
        *   @param {Object[]} [input.customAttributes] A list of custom attributes for the checkout. See the {@link https://help.shopify.com/api/storefront-api/reference/input-object/attributeinput|Storefront API reference} for valid input fields.
        *   @param {String} [input.note] A note for the checkout.
        * @return {Promise|GraphModel} A promise resolving with the updated checkout.
@@ -9333,9 +9317,37 @@ var ShopifyBuy = (function () {
     }, {
       key: 'updateAttributes',
       value: function updateAttributes(checkoutId) {
+        var _this3 = this;
+
         var input = arguments.length > 1 && arguments[1] !== undefined ? arguments[1] : {};
 
-        return this.graphQLClient.send(query$18, { checkoutId: checkoutId, input: input }).then(handleCheckoutMutation('checkoutAttributesUpdateV2', this.graphQLClient));
+        var _inputMapper$updateAt = this.inputMapper.updateAttributes(checkoutId, input),
+            cartAttributesUpdateInput = _inputMapper$updateAt.cartAttributesUpdateInput,
+            cartNoteUpdateInput = _inputMapper$updateAt.cartNoteUpdateInput;
+
+        var promise = Promise.resolve();
+
+        function updateNote() {
+          return this.graphQLClient.send(query$21, cartNoteUpdateInput).then(handleCartMutation('cartNoteUpdate', this.graphQLClient));
+        }
+
+        function updateAttributes() {
+          return this.graphQLClient.send(query$14, cartAttributesUpdateInput).then(handleCartMutation('cartAttributesUpdate', this.graphQLClient));
+        }
+
+        if (typeof cartNoteUpdateInput.note !== 'undefined') {
+          promise = promise.then(function () {
+            return updateNote.call(_this3);
+          });
+        }
+
+        if (cartAttributesUpdateInput.attributes.length) {
+          promise = promise.then(function () {
+            return updateAttributes.call(_this3);
+          });
+        }
+
+        return promise;
       }
 
       /**
@@ -9357,7 +9369,9 @@ var ShopifyBuy = (function () {
     }, {
       key: 'updateEmail',
       value: function updateEmail(checkoutId, email) {
-        return this.graphQLClient.send(query$23, { checkoutId: checkoutId, email: email }).then(handleCheckoutMutation('checkoutEmailUpdateV2', this.graphQLClient));
+        var variables = this.inputMapper.updateEmail(checkoutId, email);
+
+        return this.graphQLClient.send(query$15, variables).then(handleCartMutation('cartBuyerIdentityUpdate', this.graphQLClient));
       }
 
       /**
@@ -9378,72 +9392,82 @@ var ShopifyBuy = (function () {
 
     }, {
       key: 'addLineItems',
-      value: function addLineItems(checkoutId, lineItems) {
-        return this.graphQLClient.send(query$14, { checkoutId: checkoutId, lineItems: lineItems }).then(handleCheckoutMutation('checkoutLineItemsAdd', this.graphQLClient));
+      value: function addLineItems(checkoutId) {
+        var lineItems = arguments.length > 1 && arguments[1] !== undefined ? arguments[1] : [];
+
+        var variables = this.inputMapper.addLineItems(checkoutId, lineItems);
+
+        return this.graphQLClient.send(query$18, variables).then(handleCartMutation('cartLinesAdd', this.graphQLClient));
       }
 
       /**
-       * Applies a discount to an existing checkout using a discount code.
-       *
-       * @example
-       * const checkoutId = 'Z2lkOi8vc2hvcGlmeS9DaGVja291dC9kMTZmM2EzMDM4Yjc4N=';
-       * const discountCode = 'best-discount-ever';
-       *
-       * client.checkout.addDiscount(checkoutId, discountCode).then((checkout) => {
-       *   // Do something with the updated checkout
-       * });
-       *
-       * @param {String} checkoutId The ID of the checkout to add discount to.
-       * @param {String} discountCode The discount code to apply to the checkout.
-       * @return {Promise|GraphModel} A promise resolving with the updated checkout.
-       */
+      * Applies a discount to an existing checkout using a discount code.
+      *
+      * @example
+      * const checkoutId = 'Z2lkOi8vc2hvcGlmeS9DaGVja291dC9kMTZmM2EzMDM4Yjc4N=';
+      * const discountCode = 'best-discount-ever';
+      *
+      * client.checkout.addDiscount(checkoutId, discountCode).then((checkout) => {
+      *   // Do something with the updated checkout
+      * });
+      *
+      * @param {String} checkoutId The ID of the checkout to add discount to.
+      * @param {String} discountCode The discount code to apply to the checkout.
+      * @return {Promise|GraphModel} A promise resolving with the updated checkout.
+      */
 
     }, {
       key: 'addDiscount',
       value: function addDiscount(checkoutId, discountCode) {
-        return this.graphQLClient.send(query$19, { checkoutId: checkoutId, discountCode: discountCode }).then(handleCheckoutMutation('checkoutDiscountCodeApplyV2', this.graphQLClient));
+        var variables = this.inputMapper.addDiscount(checkoutId, discountCode);
+
+        return this.graphQLClient.send(query$16, variables).then(handleCartMutation('cartDiscountCodesUpdate', this.graphQLClient));
       }
 
       /**
-       * Removes the applied discount from an existing checkout.
-       *
-       * @example
-       * const checkoutId = 'Z2lkOi8vc2hvcGlmeS9DaGVja291dC9kMTZmM2EzMDM4Yjc4N=';
-       *
-       * client.checkout.removeDiscount(checkoutId).then((checkout) => {
-       *   // Do something with the updated checkout
-       * });
-       *
-       * @param {String} checkoutId The ID of the checkout to remove the discount from.
-       * @return {Promise|GraphModel} A promise resolving with the updated checkout.
-       */
+      * Removes the applied discount from an existing checkout.
+      *
+      * @example
+      * const checkoutId = 'Z2lkOi8vc2hvcGlmeS9DaGVja291dC9kMTZmM2EzMDM4Yjc4N=';
+      *
+      * client.checkout.removeDiscount(checkoutId).then((checkout) => {
+      *   // Do something with the updated checkout
+      * });
+      *
+      * @param {String} checkoutId The ID of the checkout to remove the discount from.
+      * @return {Promise|GraphModel} A promise resolving with the updated checkout.
+      */
 
     }, {
       key: 'removeDiscount',
       value: function removeDiscount(checkoutId) {
-        return this.graphQLClient.send(query$20, { checkoutId: checkoutId }).then(handleCheckoutMutation('checkoutDiscountCodeRemove', this.graphQLClient));
+        var variables = this.inputMapper.removeDiscount(checkoutId);
+
+        return this.graphQLClient.send(query$16, variables).then(handleCartMutation('cartDiscountCodesUpdate', this.graphQLClient));
       }
 
       /**
-       * Applies gift cards to an existing checkout using a list of gift card codes
-       *
-       * @example
-       * const checkoutId = 'Z2lkOi8vc2hvcGlmeS9DaGVja291dC9kMTZmM2EzMDM4Yjc4N=';
-       * const giftCardCodes = ['6FD8853DAGAA949F'];
-       *
-       * client.checkout.addGiftCards(checkoutId, giftCardCodes).then((checkout) => {
-       *   // Do something with the updated checkout
-       * });
-       *
-       * @param {String} checkoutId The ID of the checkout to add gift cards to.
-       * @param {String[]} giftCardCodes The gift card codes to apply to the checkout.
-       * @return {Promise|GraphModel} A promise resolving with the updated checkout.
-       */
+      * Applies gift cards to an existing checkout using a list of gift card codes
+      *
+      * @example
+      * const checkoutId = 'Z2lkOi8vc2hvcGlmeS9DaGVja291dC9kMTZmM2EzMDM4Yjc4N=';
+      * const giftCardCodes = ['6FD8853DAGAA949F'];
+      *
+      * client.checkout.addGiftCards(checkoutId, giftCardCodes).then((checkout) => {
+      *   // Do something with the updated checkout
+      * });
+      *
+      * @param {String} checkoutId The ID of the checkout to add gift cards to.
+      * @param {String[]} giftCardCodes The gift card codes to apply to the checkout.
+      * @return {Promise|GraphModel} A promise resolving with the updated checkout.
+      */
 
     }, {
       key: 'addGiftCards',
       value: function addGiftCards(checkoutId, giftCardCodes) {
-        return this.graphQLClient.send(query$21, { checkoutId: checkoutId, giftCardCodes: giftCardCodes }).then(handleCheckoutMutation('checkoutGiftCardsAppend', this.graphQLClient));
+        var variables = this.inputMapper.addGiftCards(checkoutId, giftCardCodes);
+
+        return this.graphQLClient.send(query$17, variables).then(handleCartMutation('cartGiftCardCodesUpdate', this.graphQLClient));
       }
 
       /**
@@ -9465,7 +9489,9 @@ var ShopifyBuy = (function () {
     }, {
       key: 'removeGiftCard',
       value: function removeGiftCard(checkoutId, appliedGiftCardId) {
-        return this.graphQLClient.send(query$22, { checkoutId: checkoutId, appliedGiftCardId: appliedGiftCardId }).then(handleCheckoutMutation('checkoutGiftCardRemoveV2', this.graphQLClient));
+        var variables = this.inputMapper.removeGiftCard(checkoutId, appliedGiftCardId);
+
+        return this.graphQLClient.send(query$22, variables).then(handleCartMutation('cartGiftCardCodesRemove', this.graphQLClient));
       }
 
       /**
@@ -9486,8 +9512,12 @@ var ShopifyBuy = (function () {
 
     }, {
       key: 'removeLineItems',
-      value: function removeLineItems(checkoutId, lineItemIds) {
-        return this.graphQLClient.send(query$15, { checkoutId: checkoutId, lineItemIds: lineItemIds }).then(handleCheckoutMutation('checkoutLineItemsRemove', this.graphQLClient));
+      value: function removeLineItems(checkoutId) {
+        var lineIds = arguments.length > 1 && arguments[1] !== undefined ? arguments[1] : [];
+
+        var variables = this.inputMapper.removeLineItems(checkoutId, lineIds);
+
+        return this.graphQLClient.send(query$19, variables).then(handleCartMutation('cartLinesRemove', this.graphQLClient));
       }
 
       /**
@@ -9509,7 +9539,17 @@ var ShopifyBuy = (function () {
     }, {
       key: 'replaceLineItems',
       value: function replaceLineItems(checkoutId, lineItems) {
-        return this.graphQLClient.send(query$16, { checkoutId: checkoutId, lineItems: lineItems }).then(handleCheckoutMutation('checkoutLineItemsReplace', this.graphQLClient));
+        var _this4 = this;
+
+        return this.fetch(checkoutId).then(function (checkout) {
+          var lineIds = checkout.lineItems.map(function (lineItem) {
+            return lineItem.id;
+          });
+
+          return _this4.removeLineItems(checkoutId, lineIds);
+        }).then(function () {
+          return _this4.addLineItems(checkoutId, lineItems);
+        });
       }
 
       /**
@@ -9537,14 +9577,16 @@ var ShopifyBuy = (function () {
     }, {
       key: 'updateLineItems',
       value: function updateLineItems(checkoutId, lineItems) {
-        return this.graphQLClient.send(query$17, { checkoutId: checkoutId, lineItems: lineItems }).then(handleCheckoutMutation('checkoutLineItemsUpdate', this.graphQLClient));
+        var variables = this.inputMapper.updateLineItems(checkoutId, lineItems);
+
+        return this.graphQLClient.send(query$20, variables).then(handleCartMutation('cartLinesUpdate', this.graphQLClient));
       }
 
       /**
        * Updates shipping address on an existing checkout.
        *
        * @example
-       * const checkoutId = 'Z2lkOi8vc2hvcGlmeS9DaGVja291dC9kMTZmM2EzMDM4Yjc4N=';
+       * const checkoutId = `'Z2lkOi8vc2hvcGlmeS9DaGVja291dC9kMTZmM2EzMDM4Yjc4N=';
        * const shippingAddress = {
        *    address1: 'Chestnut Street 92',
        *    address2: 'Apartment 2',
@@ -9570,7 +9612,9 @@ var ShopifyBuy = (function () {
     }, {
       key: 'updateShippingAddress',
       value: function updateShippingAddress(checkoutId, shippingAddress) {
-        return this.graphQLClient.send(query$24, { checkoutId: checkoutId, shippingAddress: shippingAddress }).then(handleCheckoutMutation('checkoutShippingAddressUpdateV2', this.graphQLClient));
+        var variables = this.inputMapper.updateShippingAddress(checkoutId, shippingAddress);
+
+        return this.graphQLClient.send(query$15, variables).then(handleCartMutation('cartBuyerIdentityUpdate', this.graphQLClient));
       }
     }]);
     return CheckoutResource;
@@ -9638,7 +9682,7 @@ var ShopifyBuy = (function () {
     return ImageResource;
   }(Resource);
 
-  var version = "2.20.0";
+  var version = "3.0.0";
 
   var AppliedGiftCard = {
     "name": "AppliedGiftCard",
@@ -9672,223 +9716,388 @@ var ShopifyBuy = (function () {
     "implementsNode": false
   };
 
-  var Boolean$1 = {
-    "name": "Boolean",
-    "kind": "SCALAR"
-  };
-
-  var Checkout = {
-    "name": "Checkout",
-    "kind": "OBJECT",
+  var BaseCartLine = {
+    "name": "BaseCartLine",
+    "kind": "INTERFACE",
     "fieldBaseTypes": {
-      "appliedGiftCards": "AppliedGiftCard",
-      "completedAt": "DateTime",
-      "createdAt": "DateTime",
-      "currencyCode": "CurrencyCode",
-      "customAttributes": "Attribute",
-      "discountApplications": "DiscountApplicationConnection",
-      "email": "String",
-      "id": "ID",
-      "lineItems": "CheckoutLineItemConnection",
-      "lineItemsSubtotalPrice": "MoneyV2",
-      "note": "String",
-      "order": "Order",
-      "orderStatusUrl": "URL",
-      "paymentDue": "MoneyV2",
-      "ready": "Boolean",
-      "requiresShipping": "Boolean",
-      "shippingAddress": "MailingAddress",
-      "shippingLine": "ShippingRate",
-      "subtotalPrice": "MoneyV2",
-      "taxExempt": "Boolean",
-      "taxesIncluded": "Boolean",
-      "totalPrice": "MoneyV2",
-      "totalTax": "MoneyV2",
-      "updatedAt": "DateTime",
-      "webUrl": "URL"
+      "id": "ID"
     },
-    "implementsNode": true
+    "possibleTypes": ["CartLine", "ComponentizableCartLine"]
   };
 
-  var CheckoutAttributesUpdateV2Payload = {
-    "name": "CheckoutAttributesUpdateV2Payload",
+  var BaseCartLineConnection = {
+    "name": "BaseCartLineConnection",
     "kind": "OBJECT",
     "fieldBaseTypes": {
-      "checkout": "Checkout",
-      "checkoutUserErrors": "CheckoutUserError",
-      "userErrors": "UserError"
-    },
-    "implementsNode": false
-  };
-
-  var CheckoutCreatePayload = {
-    "name": "CheckoutCreatePayload",
-    "kind": "OBJECT",
-    "fieldBaseTypes": {
-      "checkout": "Checkout",
-      "checkoutUserErrors": "CheckoutUserError",
-      "userErrors": "UserError"
-    },
-    "implementsNode": false
-  };
-
-  var CheckoutDiscountCodeApplyV2Payload = {
-    "name": "CheckoutDiscountCodeApplyV2Payload",
-    "kind": "OBJECT",
-    "fieldBaseTypes": {
-      "checkout": "Checkout",
-      "checkoutUserErrors": "CheckoutUserError",
-      "userErrors": "UserError"
-    },
-    "implementsNode": false
-  };
-
-  var CheckoutDiscountCodeRemovePayload = {
-    "name": "CheckoutDiscountCodeRemovePayload",
-    "kind": "OBJECT",
-    "fieldBaseTypes": {
-      "checkout": "Checkout",
-      "checkoutUserErrors": "CheckoutUserError",
-      "userErrors": "UserError"
-    },
-    "implementsNode": false
-  };
-
-  var CheckoutEmailUpdateV2Payload = {
-    "name": "CheckoutEmailUpdateV2Payload",
-    "kind": "OBJECT",
-    "fieldBaseTypes": {
-      "checkout": "Checkout",
-      "checkoutUserErrors": "CheckoutUserError",
-      "userErrors": "UserError"
-    },
-    "implementsNode": false
-  };
-
-  var CheckoutErrorCode = {
-    "name": "CheckoutErrorCode",
-    "kind": "ENUM"
-  };
-
-  var CheckoutGiftCardRemoveV2Payload = {
-    "name": "CheckoutGiftCardRemoveV2Payload",
-    "kind": "OBJECT",
-    "fieldBaseTypes": {
-      "checkout": "Checkout",
-      "checkoutUserErrors": "CheckoutUserError",
-      "userErrors": "UserError"
-    },
-    "implementsNode": false
-  };
-
-  var CheckoutGiftCardsAppendPayload = {
-    "name": "CheckoutGiftCardsAppendPayload",
-    "kind": "OBJECT",
-    "fieldBaseTypes": {
-      "checkout": "Checkout",
-      "checkoutUserErrors": "CheckoutUserError",
-      "userErrors": "UserError"
-    },
-    "implementsNode": false
-  };
-
-  var CheckoutLineItem = {
-    "name": "CheckoutLineItem",
-    "kind": "OBJECT",
-    "fieldBaseTypes": {
-      "customAttributes": "Attribute",
-      "discountAllocations": "DiscountAllocation",
-      "id": "ID",
-      "quantity": "Int",
-      "title": "String",
-      "variant": "ProductVariant"
-    },
-    "implementsNode": true
-  };
-
-  var CheckoutLineItemConnection = {
-    "name": "CheckoutLineItemConnection",
-    "kind": "OBJECT",
-    "fieldBaseTypes": {
-      "edges": "CheckoutLineItemEdge",
+      "edges": "BaseCartLineEdge",
       "pageInfo": "PageInfo"
     },
     "implementsNode": false
   };
 
-  var CheckoutLineItemEdge = {
-    "name": "CheckoutLineItemEdge",
+  var BaseCartLineEdge = {
+    "name": "BaseCartLineEdge",
     "kind": "OBJECT",
     "fieldBaseTypes": {
-      "cursor": "String",
-      "node": "CheckoutLineItem"
+      "node": "BaseCartLine"
     },
     "implementsNode": false
   };
 
-  var CheckoutLineItemsAddPayload = {
-    "name": "CheckoutLineItemsAddPayload",
+  var Boolean$1 = {
+    "name": "Boolean",
+    "kind": "SCALAR"
+  };
+
+  var Cart = {
+    "name": "Cart",
     "kind": "OBJECT",
     "fieldBaseTypes": {
-      "checkout": "Checkout",
-      "checkoutUserErrors": "CheckoutUserError",
-      "userErrors": "UserError"
+      "appliedGiftCards": "AppliedGiftCard",
+      "attributes": "Attribute",
+      "buyerIdentity": "CartBuyerIdentity",
+      "checkoutUrl": "URL",
+      "cost": "CartCost",
+      "createdAt": "DateTime",
+      "deliveryGroups": "CartDeliveryGroupConnection",
+      "discountAllocations": "CartDiscountAllocation",
+      "discountCodes": "CartDiscountCode",
+      "id": "ID",
+      "lines": "BaseCartLineConnection",
+      "note": "String",
+      "updatedAt": "DateTime"
+    },
+    "implementsNode": true
+  };
+
+  var CartAttributesUpdatePayload = {
+    "name": "CartAttributesUpdatePayload",
+    "kind": "OBJECT",
+    "fieldBaseTypes": {
+      "cart": "Cart",
+      "userErrors": "CartUserError",
+      "warnings": "CartWarning"
     },
     "implementsNode": false
   };
 
-  var CheckoutLineItemsRemovePayload = {
-    "name": "CheckoutLineItemsRemovePayload",
+  var CartAutomaticDiscountAllocation = {
+    "name": "CartAutomaticDiscountAllocation",
     "kind": "OBJECT",
     "fieldBaseTypes": {
-      "checkout": "Checkout",
-      "checkoutUserErrors": "CheckoutUserError",
-      "userErrors": "UserError"
+      "title": "String"
     },
     "implementsNode": false
   };
 
-  var CheckoutLineItemsReplacePayload = {
-    "name": "CheckoutLineItemsReplacePayload",
+  var CartBuyerIdentity = {
+    "name": "CartBuyerIdentity",
     "kind": "OBJECT",
     "fieldBaseTypes": {
-      "checkout": "Checkout",
-      "userErrors": "CheckoutUserError"
+      "countryCode": "CountryCode",
+      "customer": "Customer",
+      "deliveryAddressPreferences": "DeliveryAddress",
+      "email": "String",
+      "phone": "String",
+      "preferences": "CartPreferences"
     },
     "implementsNode": false
   };
 
-  var CheckoutLineItemsUpdatePayload = {
-    "name": "CheckoutLineItemsUpdatePayload",
+  var CartBuyerIdentityUpdatePayload = {
+    "name": "CartBuyerIdentityUpdatePayload",
     "kind": "OBJECT",
     "fieldBaseTypes": {
-      "checkout": "Checkout",
-      "checkoutUserErrors": "CheckoutUserError",
-      "userErrors": "UserError"
+      "cart": "Cart",
+      "userErrors": "CartUserError",
+      "warnings": "CartWarning"
     },
     "implementsNode": false
   };
 
-  var CheckoutShippingAddressUpdateV2Payload = {
-    "name": "CheckoutShippingAddressUpdateV2Payload",
+  var CartCodeDiscountAllocation = {
+    "name": "CartCodeDiscountAllocation",
     "kind": "OBJECT",
     "fieldBaseTypes": {
-      "checkout": "Checkout",
-      "checkoutUserErrors": "CheckoutUserError",
-      "userErrors": "UserError"
+      "code": "String"
     },
     "implementsNode": false
   };
 
-  var CheckoutUserError = {
-    "name": "CheckoutUserError",
+  var CartCost = {
+    "name": "CartCost",
     "kind": "OBJECT",
     "fieldBaseTypes": {
-      "code": "CheckoutErrorCode",
+      "checkoutChargeAmount": "MoneyV2",
+      "subtotalAmount": "MoneyV2",
+      "totalAmount": "MoneyV2",
+      "totalDutyAmount": "MoneyV2",
+      "totalTaxAmount": "MoneyV2"
+    },
+    "implementsNode": false
+  };
+
+  var CartCreatePayload = {
+    "name": "CartCreatePayload",
+    "kind": "OBJECT",
+    "fieldBaseTypes": {
+      "cart": "Cart",
+      "userErrors": "CartUserError",
+      "warnings": "CartWarning"
+    },
+    "implementsNode": false
+  };
+
+  var CartCustomDiscountAllocation = {
+    "name": "CartCustomDiscountAllocation",
+    "kind": "OBJECT",
+    "fieldBaseTypes": {
+      "title": "String"
+    },
+    "implementsNode": false
+  };
+
+  var CartDeliveryCoordinatesPreference = {
+    "name": "CartDeliveryCoordinatesPreference",
+    "kind": "OBJECT",
+    "fieldBaseTypes": {
+      "countryCode": "CountryCode",
+      "latitude": "Float",
+      "longitude": "Float"
+    },
+    "implementsNode": false
+  };
+
+  var CartDeliveryGroup = {
+    "name": "CartDeliveryGroup",
+    "kind": "OBJECT",
+    "fieldBaseTypes": {
+      "cartLines": "BaseCartLineConnection",
+      "deliveryAddress": "MailingAddress",
+      "deliveryOptions": "CartDeliveryOption",
+      "id": "ID",
+      "selectedDeliveryOption": "CartDeliveryOption"
+    },
+    "implementsNode": false
+  };
+
+  var CartDeliveryGroupConnection = {
+    "name": "CartDeliveryGroupConnection",
+    "kind": "OBJECT",
+    "fieldBaseTypes": {
+      "edges": "CartDeliveryGroupEdge",
+      "pageInfo": "PageInfo"
+    },
+    "implementsNode": false
+  };
+
+  var CartDeliveryGroupEdge = {
+    "name": "CartDeliveryGroupEdge",
+    "kind": "OBJECT",
+    "fieldBaseTypes": {
+      "node": "CartDeliveryGroup"
+    },
+    "implementsNode": false
+  };
+
+  var CartDeliveryOption = {
+    "name": "CartDeliveryOption",
+    "kind": "OBJECT",
+    "fieldBaseTypes": {
+      "code": "String",
+      "deliveryMethodType": "DeliveryMethodType",
+      "description": "String",
+      "estimatedCost": "MoneyV2",
+      "handle": "String",
+      "title": "String"
+    },
+    "implementsNode": false
+  };
+
+  var CartDeliveryPreference = {
+    "name": "CartDeliveryPreference",
+    "kind": "OBJECT",
+    "fieldBaseTypes": {
+      "coordinates": "CartDeliveryCoordinatesPreference",
+      "deliveryMethod": "PreferenceDeliveryMethodType",
+      "pickupHandle": "String"
+    },
+    "implementsNode": false
+  };
+
+  var CartDiscountAllocation = {
+    "name": "CartDiscountAllocation",
+    "kind": "INTERFACE",
+    "fieldBaseTypes": {
+      "discountApplication": "CartDiscountApplication",
+      "discountedAmount": "MoneyV2"
+    },
+    "possibleTypes": ["CartAutomaticDiscountAllocation", "CartCodeDiscountAllocation", "CartCustomDiscountAllocation"]
+  };
+
+  var CartDiscountApplication = {
+    "name": "CartDiscountApplication",
+    "kind": "OBJECT",
+    "fieldBaseTypes": {
+      "allocationMethod": "DiscountApplicationAllocationMethod",
+      "targetSelection": "DiscountApplicationTargetSelection",
+      "targetType": "DiscountApplicationTargetType",
+      "value": "PricingValue"
+    },
+    "implementsNode": false
+  };
+
+  var CartDiscountCode = {
+    "name": "CartDiscountCode",
+    "kind": "OBJECT",
+    "fieldBaseTypes": {
+      "applicable": "Boolean",
+      "code": "String"
+    },
+    "implementsNode": false
+  };
+
+  var CartDiscountCodesUpdatePayload = {
+    "name": "CartDiscountCodesUpdatePayload",
+    "kind": "OBJECT",
+    "fieldBaseTypes": {
+      "cart": "Cart",
+      "userErrors": "CartUserError",
+      "warnings": "CartWarning"
+    },
+    "implementsNode": false
+  };
+
+  var CartErrorCode = {
+    "name": "CartErrorCode",
+    "kind": "ENUM"
+  };
+
+  var CartGiftCardCodesRemovePayload = {
+    "name": "CartGiftCardCodesRemovePayload",
+    "kind": "OBJECT",
+    "fieldBaseTypes": {
+      "cart": "Cart",
+      "userErrors": "CartUserError",
+      "warnings": "CartWarning"
+    },
+    "implementsNode": false
+  };
+
+  var CartGiftCardCodesUpdatePayload = {
+    "name": "CartGiftCardCodesUpdatePayload",
+    "kind": "OBJECT",
+    "fieldBaseTypes": {
+      "cart": "Cart",
+      "userErrors": "CartUserError",
+      "warnings": "CartWarning"
+    },
+    "implementsNode": false
+  };
+
+  var CartLine = {
+    "name": "CartLine",
+    "kind": "OBJECT",
+    "fieldBaseTypes": {
+      "attributes": "Attribute",
+      "cost": "CartLineCost",
+      "discountAllocations": "CartDiscountAllocation",
+      "id": "ID",
+      "merchandise": "Merchandise",
+      "quantity": "Int"
+    },
+    "implementsNode": true
+  };
+
+  var CartLineCost = {
+    "name": "CartLineCost",
+    "kind": "OBJECT",
+    "fieldBaseTypes": {
+      "amountPerQuantity": "MoneyV2",
+      "compareAtAmountPerQuantity": "MoneyV2",
+      "subtotalAmount": "MoneyV2",
+      "totalAmount": "MoneyV2"
+    },
+    "implementsNode": false
+  };
+
+  var CartLinesAddPayload = {
+    "name": "CartLinesAddPayload",
+    "kind": "OBJECT",
+    "fieldBaseTypes": {
+      "cart": "Cart",
+      "userErrors": "CartUserError",
+      "warnings": "CartWarning"
+    },
+    "implementsNode": false
+  };
+
+  var CartLinesRemovePayload = {
+    "name": "CartLinesRemovePayload",
+    "kind": "OBJECT",
+    "fieldBaseTypes": {
+      "cart": "Cart",
+      "userErrors": "CartUserError",
+      "warnings": "CartWarning"
+    },
+    "implementsNode": false
+  };
+
+  var CartLinesUpdatePayload = {
+    "name": "CartLinesUpdatePayload",
+    "kind": "OBJECT",
+    "fieldBaseTypes": {
+      "cart": "Cart",
+      "userErrors": "CartUserError",
+      "warnings": "CartWarning"
+    },
+    "implementsNode": false
+  };
+
+  var CartNoteUpdatePayload = {
+    "name": "CartNoteUpdatePayload",
+    "kind": "OBJECT",
+    "fieldBaseTypes": {
+      "cart": "Cart",
+      "userErrors": "CartUserError"
+    },
+    "implementsNode": false
+  };
+
+  var CartPreferences = {
+    "name": "CartPreferences",
+    "kind": "OBJECT",
+    "fieldBaseTypes": {
+      "delivery": "CartDeliveryPreference",
+      "wallet": "String"
+    },
+    "implementsNode": false
+  };
+
+  var CartUserError = {
+    "name": "CartUserError",
+    "kind": "OBJECT",
+    "fieldBaseTypes": {
+      "code": "CartErrorCode",
       "field": "String",
       "message": "String"
     },
     "implementsNode": false
+  };
+
+  var CartWarning = {
+    "name": "CartWarning",
+    "kind": "OBJECT",
+    "fieldBaseTypes": {
+      "code": "CartWarningCode",
+      "message": "String"
+    },
+    "implementsNode": false
+  };
+
+  var CartWarningCode = {
+    "name": "CartWarningCode",
+    "kind": "ENUM"
   };
 
   var Collection = {
@@ -9937,6 +10146,15 @@ var ShopifyBuy = (function () {
     "kind": "ENUM"
   };
 
+  var Customer = {
+    "name": "Customer",
+    "kind": "OBJECT",
+    "fieldBaseTypes": {
+      "email": "String"
+    },
+    "implementsNode": false
+  };
+
   var DateTime = {
     "name": "DateTime",
     "kind": "SCALAR"
@@ -9947,14 +10165,14 @@ var ShopifyBuy = (function () {
     "kind": "SCALAR"
   };
 
-  var DiscountAllocation = {
-    "name": "DiscountAllocation",
-    "kind": "OBJECT",
-    "fieldBaseTypes": {
-      "allocatedAmount": "MoneyV2",
-      "discountApplication": "DiscountApplication"
-    },
-    "implementsNode": false
+  var DeliveryAddress = {
+    "name": "DeliveryAddress",
+    "kind": "UNION"
+  };
+
+  var DeliveryMethodType = {
+    "name": "DeliveryMethodType",
+    "kind": "ENUM"
   };
 
   var DiscountApplication = {
@@ -9972,25 +10190,6 @@ var ShopifyBuy = (function () {
   var DiscountApplicationAllocationMethod = {
     "name": "DiscountApplicationAllocationMethod",
     "kind": "ENUM"
-  };
-
-  var DiscountApplicationConnection = {
-    "name": "DiscountApplicationConnection",
-    "kind": "OBJECT",
-    "fieldBaseTypes": {
-      "edges": "DiscountApplicationEdge",
-      "pageInfo": "PageInfo"
-    },
-    "implementsNode": false
-  };
-
-  var DiscountApplicationEdge = {
-    "name": "DiscountApplicationEdge",
-    "kind": "OBJECT",
-    "fieldBaseTypes": {
-      "node": "DiscountApplication"
-    },
-    "implementsNode": false
   };
 
   var DiscountApplicationTargetSelection = {
@@ -10089,7 +10288,7 @@ var ShopifyBuy = (function () {
       "countryCodeV2": "CountryCode",
       "firstName": "String",
       "formatted": "String",
-      "id": "ID",
+      "formattedArea": "String",
       "lastName": "String",
       "latitude": "Float",
       "longitude": "Float",
@@ -10112,6 +10311,11 @@ var ShopifyBuy = (function () {
     "implementsNode": false
   };
 
+  var Merchandise = {
+    "name": "Merchandise",
+    "kind": "UNION"
+  };
+
   var MoneyV2 = {
     "name": "MoneyV2",
     "kind": "OBJECT",
@@ -10126,25 +10330,21 @@ var ShopifyBuy = (function () {
     "name": "Mutation",
     "kind": "OBJECT",
     "fieldBaseTypes": {
-      "checkoutAttributesUpdateV2": "CheckoutAttributesUpdateV2Payload",
-      "checkoutCreate": "CheckoutCreatePayload",
-      "checkoutDiscountCodeApplyV2": "CheckoutDiscountCodeApplyV2Payload",
-      "checkoutDiscountCodeRemove": "CheckoutDiscountCodeRemovePayload",
-      "checkoutEmailUpdateV2": "CheckoutEmailUpdateV2Payload",
-      "checkoutGiftCardRemoveV2": "CheckoutGiftCardRemoveV2Payload",
-      "checkoutGiftCardsAppend": "CheckoutGiftCardsAppendPayload",
-      "checkoutLineItemsAdd": "CheckoutLineItemsAddPayload",
-      "checkoutLineItemsRemove": "CheckoutLineItemsRemovePayload",
-      "checkoutLineItemsReplace": "CheckoutLineItemsReplacePayload",
-      "checkoutLineItemsUpdate": "CheckoutLineItemsUpdatePayload",
-      "checkoutShippingAddressUpdateV2": "CheckoutShippingAddressUpdateV2Payload"
+      "cartAttributesUpdate": "CartAttributesUpdatePayload",
+      "cartBuyerIdentityUpdate": "CartBuyerIdentityUpdatePayload",
+      "cartCreate": "CartCreatePayload",
+      "cartDiscountCodesUpdate": "CartDiscountCodesUpdatePayload",
+      "cartGiftCardCodesRemove": "CartGiftCardCodesRemovePayload",
+      "cartGiftCardCodesUpdate": "CartGiftCardCodesUpdatePayload",
+      "cartLinesAdd": "CartLinesAddPayload",
+      "cartLinesRemove": "CartLinesRemovePayload",
+      "cartLinesUpdate": "CartLinesUpdatePayload",
+      "cartNoteUpdate": "CartNoteUpdatePayload"
     },
     "implementsNode": false,
     "relayInputObjectBaseTypes": {
       "cartCreate": "CartInput",
       "cartMetafieldDelete": "CartMetafieldDeleteInput",
-      "checkoutAttributesUpdateV2": "CheckoutAttributesUpdateV2Input",
-      "checkoutCreate": "CheckoutCreateInput",
       "customerAccessTokenCreate": "CustomerAccessTokenCreateInput",
       "customerActivate": "CustomerActivateInput",
       "customerCreate": "CustomerCreateInput",
@@ -10156,59 +10356,7 @@ var ShopifyBuy = (function () {
     "name": "Node",
     "kind": "INTERFACE",
     "fieldBaseTypes": {},
-    "possibleTypes": ["AppliedGiftCard", "Article", "Blog", "Cart", "CartLine", "Checkout", "CheckoutLineItem", "Collection", "Comment", "ExternalVideo", "GenericFile", "Location", "MailingAddress", "Market", "MediaImage", "MediaPresentation", "Menu", "MenuItem", "Metafield", "Metaobject", "Model3d", "Order", "Page", "Payment", "Product", "ProductOption", "ProductVariant", "Shop", "ShopPolicy", "UrlRedirect", "Video"]
-  };
-
-  var Order = {
-    "name": "Order",
-    "kind": "OBJECT",
-    "fieldBaseTypes": {
-      "currencyCode": "CurrencyCode",
-      "customerUrl": "URL",
-      "id": "ID",
-      "lineItems": "OrderLineItemConnection",
-      "orderNumber": "Int",
-      "processedAt": "DateTime",
-      "shippingAddress": "MailingAddress",
-      "subtotalPrice": "MoneyV2",
-      "totalPrice": "MoneyV2",
-      "totalRefunded": "MoneyV2",
-      "totalShippingPrice": "MoneyV2",
-      "totalTax": "MoneyV2"
-    },
-    "implementsNode": true
-  };
-
-  var OrderLineItem = {
-    "name": "OrderLineItem",
-    "kind": "OBJECT",
-    "fieldBaseTypes": {
-      "customAttributes": "Attribute",
-      "quantity": "Int",
-      "title": "String",
-      "variant": "ProductVariant"
-    },
-    "implementsNode": false
-  };
-
-  var OrderLineItemConnection = {
-    "name": "OrderLineItemConnection",
-    "kind": "OBJECT",
-    "fieldBaseTypes": {
-      "edges": "OrderLineItemEdge",
-      "pageInfo": "PageInfo"
-    },
-    "implementsNode": false
-  };
-
-  var OrderLineItemEdge = {
-    "name": "OrderLineItemEdge",
-    "kind": "OBJECT",
-    "fieldBaseTypes": {
-      "cursor": "String",
-      "node": "OrderLineItem"
-    },
-    "implementsNode": false
+    "possibleTypes": ["AppliedGiftCard", "Article", "Blog", "Cart", "CartLine", "Collection", "Comment", "Company", "CompanyContact", "CompanyLocation", "ComponentizableCartLine", "ExternalVideo", "GenericFile", "Location", "MailingAddress", "Market", "MediaImage", "MediaPresentation", "Menu", "MenuItem", "Metafield", "Metaobject", "Model3d", "Order", "Page", "Product", "ProductOption", "ProductOptionValue", "ProductVariant", "Shop", "ShopPayInstallmentsFinancingPlan", "ShopPayInstallmentsFinancingPlanTerm", "ShopPayInstallmentsProductVariantPricing", "ShopPolicy", "TaxonomyCategory", "UrlRedirect", "Video"]
   };
 
   var PageInfo = {
@@ -10228,6 +10376,11 @@ var ShopifyBuy = (function () {
       "enabledPresentmentCurrencies": "CurrencyCode"
     },
     "implementsNode": false
+  };
+
+  var PreferenceDeliveryMethodType = {
+    "name": "PreferenceDeliveryMethodType",
+    "kind": "ENUM"
   };
 
   var PricingPercentageValue = {
@@ -10341,6 +10494,7 @@ var ShopifyBuy = (function () {
     "name": "QueryRoot",
     "kind": "OBJECT",
     "fieldBaseTypes": {
+      "cart": "Cart",
       "collectionByHandle": "Collection",
       "collections": "CollectionConnection",
       "node": "Node",
@@ -10368,17 +10522,6 @@ var ShopifyBuy = (function () {
     "fieldBaseTypes": {
       "name": "String",
       "value": "String"
-    },
-    "implementsNode": false
-  };
-
-  var ShippingRate = {
-    "name": "ShippingRate",
-    "kind": "OBJECT",
-    "fieldBaseTypes": {
-      "handle": "String",
-      "price": "MoneyV2",
-      "title": "String"
     },
     "implementsNode": false
   };
@@ -10460,37 +10603,54 @@ var ShopifyBuy = (function () {
   Types.types["AppliedGiftCard"] = AppliedGiftCard;
   Types.types["Attribute"] = Attribute;
   Types.types["AutomaticDiscountApplication"] = AutomaticDiscountApplication;
+  Types.types["BaseCartLine"] = BaseCartLine;
+  Types.types["BaseCartLineConnection"] = BaseCartLineConnection;
+  Types.types["BaseCartLineEdge"] = BaseCartLineEdge;
   Types.types["Boolean"] = Boolean$1;
-  Types.types["Checkout"] = Checkout;
-  Types.types["CheckoutAttributesUpdateV2Payload"] = CheckoutAttributesUpdateV2Payload;
-  Types.types["CheckoutCreatePayload"] = CheckoutCreatePayload;
-  Types.types["CheckoutDiscountCodeApplyV2Payload"] = CheckoutDiscountCodeApplyV2Payload;
-  Types.types["CheckoutDiscountCodeRemovePayload"] = CheckoutDiscountCodeRemovePayload;
-  Types.types["CheckoutEmailUpdateV2Payload"] = CheckoutEmailUpdateV2Payload;
-  Types.types["CheckoutErrorCode"] = CheckoutErrorCode;
-  Types.types["CheckoutGiftCardRemoveV2Payload"] = CheckoutGiftCardRemoveV2Payload;
-  Types.types["CheckoutGiftCardsAppendPayload"] = CheckoutGiftCardsAppendPayload;
-  Types.types["CheckoutLineItem"] = CheckoutLineItem;
-  Types.types["CheckoutLineItemConnection"] = CheckoutLineItemConnection;
-  Types.types["CheckoutLineItemEdge"] = CheckoutLineItemEdge;
-  Types.types["CheckoutLineItemsAddPayload"] = CheckoutLineItemsAddPayload;
-  Types.types["CheckoutLineItemsRemovePayload"] = CheckoutLineItemsRemovePayload;
-  Types.types["CheckoutLineItemsReplacePayload"] = CheckoutLineItemsReplacePayload;
-  Types.types["CheckoutLineItemsUpdatePayload"] = CheckoutLineItemsUpdatePayload;
-  Types.types["CheckoutShippingAddressUpdateV2Payload"] = CheckoutShippingAddressUpdateV2Payload;
-  Types.types["CheckoutUserError"] = CheckoutUserError;
+  Types.types["Cart"] = Cart;
+  Types.types["CartAttributesUpdatePayload"] = CartAttributesUpdatePayload;
+  Types.types["CartAutomaticDiscountAllocation"] = CartAutomaticDiscountAllocation;
+  Types.types["CartBuyerIdentity"] = CartBuyerIdentity;
+  Types.types["CartBuyerIdentityUpdatePayload"] = CartBuyerIdentityUpdatePayload;
+  Types.types["CartCodeDiscountAllocation"] = CartCodeDiscountAllocation;
+  Types.types["CartCost"] = CartCost;
+  Types.types["CartCreatePayload"] = CartCreatePayload;
+  Types.types["CartCustomDiscountAllocation"] = CartCustomDiscountAllocation;
+  Types.types["CartDeliveryCoordinatesPreference"] = CartDeliveryCoordinatesPreference;
+  Types.types["CartDeliveryGroup"] = CartDeliveryGroup;
+  Types.types["CartDeliveryGroupConnection"] = CartDeliveryGroupConnection;
+  Types.types["CartDeliveryGroupEdge"] = CartDeliveryGroupEdge;
+  Types.types["CartDeliveryOption"] = CartDeliveryOption;
+  Types.types["CartDeliveryPreference"] = CartDeliveryPreference;
+  Types.types["CartDiscountAllocation"] = CartDiscountAllocation;
+  Types.types["CartDiscountApplication"] = CartDiscountApplication;
+  Types.types["CartDiscountCode"] = CartDiscountCode;
+  Types.types["CartDiscountCodesUpdatePayload"] = CartDiscountCodesUpdatePayload;
+  Types.types["CartErrorCode"] = CartErrorCode;
+  Types.types["CartGiftCardCodesRemovePayload"] = CartGiftCardCodesRemovePayload;
+  Types.types["CartGiftCardCodesUpdatePayload"] = CartGiftCardCodesUpdatePayload;
+  Types.types["CartLine"] = CartLine;
+  Types.types["CartLineCost"] = CartLineCost;
+  Types.types["CartLinesAddPayload"] = CartLinesAddPayload;
+  Types.types["CartLinesRemovePayload"] = CartLinesRemovePayload;
+  Types.types["CartLinesUpdatePayload"] = CartLinesUpdatePayload;
+  Types.types["CartNoteUpdatePayload"] = CartNoteUpdatePayload;
+  Types.types["CartPreferences"] = CartPreferences;
+  Types.types["CartUserError"] = CartUserError;
+  Types.types["CartWarning"] = CartWarning;
+  Types.types["CartWarningCode"] = CartWarningCode;
   Types.types["Collection"] = Collection;
   Types.types["CollectionConnection"] = CollectionConnection;
   Types.types["CollectionEdge"] = CollectionEdge;
   Types.types["CountryCode"] = CountryCode;
   Types.types["CurrencyCode"] = CurrencyCode;
+  Types.types["Customer"] = Customer;
   Types.types["DateTime"] = DateTime;
   Types.types["Decimal"] = Decimal;
-  Types.types["DiscountAllocation"] = DiscountAllocation;
+  Types.types["DeliveryAddress"] = DeliveryAddress;
+  Types.types["DeliveryMethodType"] = DeliveryMethodType;
   Types.types["DiscountApplication"] = DiscountApplication;
   Types.types["DiscountApplicationAllocationMethod"] = DiscountApplicationAllocationMethod;
-  Types.types["DiscountApplicationConnection"] = DiscountApplicationConnection;
-  Types.types["DiscountApplicationEdge"] = DiscountApplicationEdge;
   Types.types["DiscountApplicationTargetSelection"] = DiscountApplicationTargetSelection;
   Types.types["DiscountApplicationTargetType"] = DiscountApplicationTargetType;
   Types.types["DiscountCodeApplication"] = DiscountCodeApplication;
@@ -10504,15 +10664,13 @@ var ShopifyBuy = (function () {
   Types.types["Int"] = Int;
   Types.types["MailingAddress"] = MailingAddress;
   Types.types["ManualDiscountApplication"] = ManualDiscountApplication;
+  Types.types["Merchandise"] = Merchandise;
   Types.types["MoneyV2"] = MoneyV2;
   Types.types["Mutation"] = Mutation$1;
   Types.types["Node"] = Node;
-  Types.types["Order"] = Order;
-  Types.types["OrderLineItem"] = OrderLineItem;
-  Types.types["OrderLineItemConnection"] = OrderLineItemConnection;
-  Types.types["OrderLineItemEdge"] = OrderLineItemEdge;
   Types.types["PageInfo"] = PageInfo;
   Types.types["PaymentSettings"] = PaymentSettings;
+  Types.types["PreferenceDeliveryMethodType"] = PreferenceDeliveryMethodType;
   Types.types["PricingPercentageValue"] = PricingPercentageValue;
   Types.types["PricingValue"] = PricingValue;
   Types.types["Product"] = Product;
@@ -10525,7 +10683,6 @@ var ShopifyBuy = (function () {
   Types.types["QueryRoot"] = QueryRoot;
   Types.types["ScriptDiscountApplication"] = ScriptDiscountApplication;
   Types.types["SelectedOption"] = SelectedOption;
-  Types.types["ShippingRate"] = ShippingRate;
   Types.types["Shop"] = Shop;
   Types.types["ShopPolicy"] = ShopPolicy;
   Types.types["String"] = String$1;
@@ -10559,7 +10716,7 @@ var ShopifyBuy = (function () {
    * @property {ProductResource} product The property under which product fetching methods live.
    * @property {CollectionResource} collection The property under which collection fetching methods live.
    * @property {ShopResource} shop The property under which shop fetching methods live.
-   * @property {CheckoutResource} checkout The property under which shop fetching and mutating methods live.
+   * @property {CartResource} cart The property under which shop fetching and mutating methods live.
    * @property {ImageResource} image The property under which image helper methods live.
    */
 
@@ -10592,7 +10749,7 @@ var ShopifyBuy = (function () {
       var fetchFunction = arguments[2];
       classCallCheck$1(this, Client);
 
-      var url = 'https://' + config.domain + '/api/' + config.apiVersion + '/graphql';
+      var url = 'https://' + config.domain + '/api/2025-01/graphql';
 
       var headers = {
         'X-SDK-Variant': 'javascript',
@@ -12591,7 +12748,10 @@ var ShopifyBuy = (function () {
   var iframeStyles = {
     width: '100%',
     overflow: 'hidden',
-    border: 'none'
+    // Firefox for some reason sets 'border: medium' even if we set it to 'border: none'
+    // when using JavaScript to set the style. The workaround is to set individual border styles
+    'border-width': '0',
+    'border-style': 'none'
   };
   var iframeAttrs = {
     horizontalscrolling: 'no',
@@ -15780,7 +15940,7 @@ var ShopifyBuy = (function () {
    * @extends Component.
    */
 
-  var Cart =
+  var Cart$1 =
   /*#__PURE__*/
   function (_Component) {
     _inheritsLoose(Cart, _Component);
@@ -16576,7 +16736,7 @@ var ShopifyBuy = (function () {
       };
       this.componentTypes = {
         product: Product$1,
-        cart: Cart,
+        cart: Cart$1,
         collection: ProductSet,
         productSet: ProductSet,
         toggle: CartToggle
@@ -16682,7 +16842,7 @@ var ShopifyBuy = (function () {
 
         return Promise.resolve(this.components.cart[0]);
       } else {
-        var cart = new Cart(config, this.componentProps);
+        var cart = new Cart$1(config, this.componentProps);
         this.components.cart.push(cart);
         return cart.init();
       }
